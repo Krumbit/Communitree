@@ -1,15 +1,16 @@
 {
   "expo": {
-    "name": "scenario2",
-    "slug": "scenario2",
+    "name": "communitree",
+    "slug": "communitree",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "scenario2",
+    "scheme": "communitree",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "communitree"
     },
     "android": {
       "adaptiveIcon": {
