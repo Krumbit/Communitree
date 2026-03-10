@@ -39,8 +39,8 @@ export default function Index() {
       </ScrollView>
 
       <Pressable onPress={() => console.log("clicked")}
-        className="absolute bottom-10 right-10 rounded-full bg-[#243E36] px-20 py-10">
-          <Text className="text-white font-bold">
+        className="absolute bottom-10 right-20 rounded-full bg-[#243E36] px-10 py-10">
+          <Text className="text-white text-2xl">
             Add task
           </Text>
       </Pressable>
