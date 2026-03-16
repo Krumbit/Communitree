@@ -141,16 +141,51 @@ const initialCommunity: Community = {
   plantName: "Monstera Bloom",
   levelProgress: 72,
   members: [
-    { id: "user-yan", name: "Yan", initials: "YS", completedToday: false, role: "owner" },
+    {
+      id: "user-yan",
+      name: "Yan",
+      initials: "YS",
+      completedToday: false,
+      role: "owner",
+    },
     { id: "member-jiahe", name: "Jiahe", initials: "JA", completedToday: true },
     { id: "member-ben", name: "Ben", initials: "BD", completedToday: true },
-    { id: "member-rayhan", name: "Rayhan", initials: "RM", completedToday: false },
+    {
+      id: "member-rayhan",
+      name: "Rayhan",
+      initials: "RM",
+      completedToday: false,
+    },
   ],
   weeklyHistory: [
-    { week: "Wk 1", completionRate: 0.54, perfectDays: 1, coinsEarned: 8, plantDelta: 1 },
-    { week: "Wk 2", completionRate: 0.68, perfectDays: 2, coinsEarned: 11, plantDelta: 2 },
-    { week: "Wk 3", completionRate: 0.81, perfectDays: 3, coinsEarned: 15, plantDelta: 3 },
-    { week: "Wk 4", completionRate: 0.76, perfectDays: 2, coinsEarned: 13, plantDelta: 2 },
+    {
+      week: "Wk 1",
+      completionRate: 0.54,
+      perfectDays: 1,
+      coinsEarned: 8,
+      plantDelta: 1,
+    },
+    {
+      week: "Wk 2",
+      completionRate: 0.68,
+      perfectDays: 2,
+      coinsEarned: 11,
+      plantDelta: 2,
+    },
+    {
+      week: "Wk 3",
+      completionRate: 0.81,
+      perfectDays: 3,
+      coinsEarned: 15,
+      plantDelta: 3,
+    },
+    {
+      week: "Wk 4",
+      completionRate: 0.76,
+      perfectDays: 2,
+      coinsEarned: 13,
+      plantDelta: 2,
+    },
   ],
 };
 
@@ -226,9 +261,16 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
   const [unlockables, setUnlockables] = useState(initialUnlockables);
   const [equipped, setEquipped] = useState(initialEquipped);
 
-  const completedCount = community.members.filter((member) => member.completedToday).length;
-  const completionRate = community.members.length === 0 ? 0 : completedCount / community.members.length;
-  const isOwner = community.members.some((member) => member.id === user.id && member.role === "owner");
+  const completedCount = community.members.filter(
+    (member) => member.completedToday,
+  ).length;
+  const completionRate =
+    community.members.length === 0
+      ? 0
+      : completedCount / community.members.length;
+  const isOwner = community.members.some(
+    (member) => member.id === user.id && member.role === "owner",
+  );
 
   const value = useMemo<CommunitreeContextValue>(() => {
     const togglePersonalTask = (taskId: string) => {
@@ -260,16 +302,25 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
 
     const toggleCommunityCompletion = () => {
       setCommunity((current) => {
-        const previousCompletedCount = current.members.filter((member) => member.completedToday).length;
-        const previousEveryoneDone = previousCompletedCount === current.members.length;
+        const previousCompletedCount = current.members.filter(
+          (member) => member.completedToday,
+        ).length;
+        const previousEveryoneDone =
+          previousCompletedCount === current.members.length;
 
         const nextMembers = current.members.map((member) =>
-          member.id === user.id ? { ...member, completedToday: !member.completedToday } : member,
+          member.id === user.id
+            ? { ...member, completedToday: !member.completedToday }
+            : member,
         );
 
-        const nextCompletedCount = nextMembers.filter((member) => member.completedToday).length;
+        const nextCompletedCount = nextMembers.filter(
+          (member) => member.completedToday,
+        ).length;
         const nextEveryoneDone = nextCompletedCount === nextMembers.length;
-        const currentUserWasComplete = current.members.find((member) => member.id === user.id)?.completedToday;
+        const currentUserWasComplete = current.members.find(
+          (member) => member.id === user.id,
+        )?.completedToday;
 
         setUser((currentUser) => {
           let nextCoins = currentUser.coins;
@@ -308,45 +359,72 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
       setCommunity((current) => ({
         ...current,
         currentTaskTitle: trimmedTitle,
-        members: current.members.map((member) => ({ ...member, completedToday: false })),
+        members: current.members.map((member) => ({
+          ...member,
+          completedToday: false,
+        })),
       }));
     };
 
     const joinCommunity = (code: string) => {
       if (code.trim().toUpperCase() !== community.code) {
-        return { ok: false, message: "That code does not match this prototype community." };
+        return {
+          ok: false,
+          message: "That code does not match this prototype community.",
+        };
       }
 
-      return { ok: true, message: `Joined ${community.name}. In the prototype, you are already in this community.` };
+      return {
+        ok: true,
+        message: `Joined ${community.name}. In the prototype, you are already in this community.`,
+      };
     };
 
     const buyUnlockable = (unlockableId: string) => {
-      const target = unlockables.find((unlockable) => unlockable.id === unlockableId);
+      const target = unlockables.find(
+        (unlockable) => unlockable.id === unlockableId,
+      );
 
       if (!target) {
         return { ok: false, message: "That cosmetic could not be found." };
       }
 
       if (target.purchased) {
-        return { ok: true, message: `${target.name} is already in your collection.` };
+        return {
+          ok: true,
+          message: `${target.name} is already in your collection.`,
+        };
       }
 
       if (user.coins < target.price) {
-        return { ok: false, message: "Not enough coins for that cosmetic yet." };
+        return {
+          ok: false,
+          message: "Not enough coins for that cosmetic yet.",
+        };
       }
 
-      setUser((current) => ({ ...current, coins: current.coins - target.price }));
+      setUser((current) => ({
+        ...current,
+        coins: current.coins - target.price,
+      }));
       setUnlockables((current) =>
         current.map((unlockable) =>
-          unlockable.id === unlockableId ? { ...unlockable, purchased: true } : unlockable,
+          unlockable.id === unlockableId
+            ? { ...unlockable, purchased: true }
+            : unlockable,
         ),
       );
 
-      return { ok: true, message: `${target.name} unlocked for your community plant.` };
+      return {
+        ok: true,
+        message: `${target.name} unlocked for your community plant.`,
+      };
     };
 
     const equipUnlockable = (unlockableId: string) => {
-      const target = unlockables.find((unlockable) => unlockable.id === unlockableId);
+      const target = unlockables.find(
+        (unlockable) => unlockable.id === unlockableId,
+      );
 
       if (!target || !target.purchased) {
         return;
@@ -386,9 +464,22 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
       equipUnlockable,
       signInMock,
     };
-  }, [community, completionRate, completedCount, equipped, isOwner, personalTasks, unlockables, user]);
+  }, [
+    community,
+    completionRate,
+    completedCount,
+    equipped,
+    isOwner,
+    personalTasks,
+    unlockables,
+    user,
+  ]);
 
-  return <CommunitreeContext.Provider value={value}>{children}</CommunitreeContext.Provider>;
+  return (
+    <CommunitreeContext.Provider value={value}>
+      {children}
+    </CommunitreeContext.Provider>
+  );
 }
 
 export function useCommunitree() {

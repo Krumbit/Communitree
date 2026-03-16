@@ -1,19 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
+import { palette } from "@/constants/palette";
+
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#1F7A59",
-        tabBarInactiveTintColor: "#6B7280",
+        tabBarActiveTintColor: palette.teal,
+        tabBarInactiveTintColor: palette.slateMuted,
         tabBarStyle: {
           height: 72,
           paddingTop: 8,
           paddingBottom: 10,
-          backgroundColor: "#F8FAF7",
-          borderTopColor: "#D7E4D5",
+          backgroundColor: palette.ivory,
+          borderTopColor: palette.tealMist,
         },
         tabBarLabelStyle: {
           fontSize: 12,

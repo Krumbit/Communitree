@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
+import { palette } from "@/constants/palette";
 import { useCommunitree } from "@/context/communitree-context";
 
 function formatDeadline(deadline: string) {
@@ -62,47 +63,47 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-[#F4F1EA]"
+      className="flex-1 bg-ivory"
       contentContainerStyle={{ paddingBottom: 36 }}
     >
       <View className="px-6 pb-8 pt-16">
-        <View className="rounded-[32px] border border-[#D9D0C1] bg-[#1D4D3E] px-6 py-6">
+        <View className="rounded-[32px] border border-teal/30 bg-slate px-6 py-6">
           <View className="flex-row items-start justify-between gap-4">
             <View className="flex-1">
-              <Text className="text-xs font-semibold uppercase tracking-[2px] text-[#BEE3D4]">
+              <Text className="text-xs font-semibold uppercase tracking-[2px] text-teal-soft">
                 Home dashboard
               </Text>
-              <Text className="mt-3 text-4xl font-bold leading-tight text-[#F8F4EE]">
+              <Text className="mt-3 text-4xl font-bold leading-tight text-ivory">
                 Keep your habits moving and your community plant thriving.
               </Text>
-              <Text className="mt-4 text-base leading-6 text-[#D8EBDD]">
+              <Text className="mt-4 text-base leading-6 text-ivory/80">
                 Your closest deadlines stay here, while the shared task keeps
                 everyone accountable.
               </Text>
             </View>
 
             <Pressable
-              className="rounded-full border border-[#79B69A] px-4 py-3"
+              className="rounded-full border border-teal/60 px-4 py-3"
               onPress={() => router.push("../sign-in")}
             >
-              <Ionicons name="person-outline" size={18} color="#F8F4EE" />
+              <Ionicons name="person-outline" size={18} color={palette.ivory} />
             </Pressable>
           </View>
 
           <View className="mt-6 flex-row gap-3">
-            <View className="flex-1 rounded-[24px] bg-[#F7F0E6] px-4 py-4">
-              <Text className="text-xs font-semibold uppercase tracking-[2px] text-[#8A6A49]">
+            <View className="flex-1 rounded-[24px] bg-ivory px-4 py-4">
+              <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
                 Coins
               </Text>
-              <Text className="mt-2 text-3xl font-bold text-[#2A2018]">
+              <Text className="mt-2 text-3xl font-bold text-slate">
                 {user.coins}
               </Text>
             </View>
-            <View className="flex-1 rounded-[24px] bg-[#D8EBDD] px-4 py-4">
-              <Text className="text-xs font-semibold uppercase tracking-[2px] text-[#3B6A57]">
+            <View className="flex-1 rounded-[24px] bg-teal-mist px-4 py-4">
+              <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/65">
                 Streak
               </Text>
-              <Text className="mt-2 text-3xl font-bold text-[#16382D]">
+              <Text className="mt-2 text-3xl font-bold text-slate">
                 {user.streakDays}d
               </Text>
             </View>
@@ -110,55 +111,55 @@ export default function HomeScreen() {
         </View>
 
         {!user.signedIn ? (
-          <View className="mt-5 rounded-[26px] border border-[#E2CFA9] bg-[#FFF5DE] px-5 py-5">
-            <Text className="text-lg font-semibold text-[#6D4D1F]">
+          <View className="mt-5 rounded-[26px] border border-teal/20 bg-teal/10 px-5 py-5">
+            <Text className="text-lg font-semibold text-slate">
               Preview mode
             </Text>
-            <Text className="mt-2 text-sm leading-6 text-[#7D6241]">
+            <Text className="mt-2 text-sm leading-6 text-slate/70">
               Sign in is mocked on the front end only. Use the preview form to
               explore the account flow without any backend.
             </Text>
           </View>
         ) : null}
 
-        <View className="mt-6 rounded-[30px] border border-[#D8D0C6] bg-[#F9F6F1] px-5 py-5">
+        <View className="mt-6 rounded-[30px] border border-teal/20 bg-ivory-soft px-5 py-5">
           <View className="flex-row items-start justify-between gap-3">
             <View className="flex-1">
-              <Text className="text-xs font-semibold uppercase tracking-[2px] text-[#6A7A6C]">
+              <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
                 Today&apos;s community habit
               </Text>
-              <Text className="mt-2 text-2xl font-bold leading-tight text-[#21352E]">
+              <Text className="mt-2 text-2xl font-bold leading-tight text-slate">
                 {community.currentTaskTitle}
               </Text>
-              <Text className="mt-2 text-sm text-[#69756D]">
+              <Text className="mt-2 text-sm text-slate/70">
                 {community.currentTaskEnds}
               </Text>
             </View>
-            <View className="rounded-full bg-[#E5EFE8] px-4 py-2">
-              <Text className="text-sm font-semibold text-[#305B47]">
+            <View className="rounded-full bg-teal-mist px-4 py-2">
+              <Text className="text-sm font-semibold text-slate">
                 {completedCount}/{community.members.length}
               </Text>
             </View>
           </View>
 
-          <View className="mt-5 h-4 overflow-hidden rounded-full bg-[#D8DDD6]">
-            <View className="h-full w-1/2 bg-[#D77C71]" />
-            <View className="absolute right-0 top-0 h-full w-1/2 bg-[#7DB98F]" />
+          <View className="mt-5 h-4 overflow-hidden rounded-full bg-slate/10">
+            <View className="h-full w-1/2 bg-slate/20" />
+            <View className="absolute right-0 top-0 h-full w-1/2 bg-teal/60" />
             <View
-              className="absolute left-0 top-0 h-full bg-[#59635D]/50"
+              className="absolute left-0 top-0 h-full bg-slate/65"
               style={{ width: `${Math.max(8, completionRate * 100)}%` }}
             />
           </View>
 
           <View className="mt-4 flex-row items-center justify-between gap-3">
             <View className="flex-1">
-              <Text className="text-sm leading-6 text-[#667268]">
-                More than 50% completion grows the plant tomorrow.
-                Full-community days add a coin bonus for everyone.
+              <Text className="text-sm leading-6 text-slate/70">
+                Crossing the 50% mark moves the plant forward tomorrow.
+                Full-community days still add a coin bonus for everyone.
               </Text>
             </View>
             <Pressable
-              className={`rounded-full px-4 py-3 ${hasCompletedToday ? "bg-[#21352E]" : "bg-[#4E7D66]"}`}
+              className={`rounded-full px-4 py-3 ${hasCompletedToday ? "bg-slate" : "bg-teal"}`}
               onPress={toggleCommunityCompletion}
             >
               <Text className="text-sm font-semibold text-white">
@@ -170,44 +171,44 @@ export default function HomeScreen() {
 
         <View className="mt-8 flex-row items-center justify-between">
           <View>
-            <Text className="text-xs font-semibold uppercase tracking-[2px] text-[#8A7A63]">
+            <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
               Personal tasks
             </Text>
-            <Text className="mt-2 text-2xl font-bold text-[#2A2018]">
+            <Text className="mt-2 text-2xl font-bold text-slate">
               Closest deadlines first
             </Text>
           </View>
           <Pressable
-            className="rounded-full bg-[#2A2018] px-4 py-3"
+            className="rounded-full bg-slate px-4 py-3"
             onPress={() => setShowComposer((current) => !current)}
           >
-            <Text className="text-sm font-semibold text-[#F8F4EE]">
+            <Text className="text-sm font-semibold text-ivory">
               {showComposer ? "Close" : "New task"}
             </Text>
           </Pressable>
         </View>
 
         {showComposer ? (
-          <View className="mt-4 rounded-[28px] border border-[#D9D0C1] bg-white px-5 py-5">
-            <Text className="text-lg font-semibold text-[#2A2018]">
+          <View className="mt-4 rounded-[28px] border border-teal/20 bg-ivory-soft px-5 py-5">
+            <Text className="text-lg font-semibold text-slate">
               Create a private task
             </Text>
             <TextInput
-              className="mt-4 rounded-[20px] border border-[#DDD4C7] px-4 py-4 text-base text-[#2A2018]"
+              className="mt-4 rounded-[20px] border border-teal/20 bg-ivory px-4 py-4 text-base text-slate"
               placeholder="Task title"
-              placeholderTextColor="#91836F"
+              placeholderTextColor={palette.slateMuted}
               value={title}
               onChangeText={setTitle}
             />
             <TextInput
-              className="mt-3 rounded-[20px] border border-[#DDD4C7] px-4 py-4 text-base text-[#2A2018]"
+              className="mt-3 rounded-[20px] border border-teal/20 bg-ivory px-4 py-4 text-base text-slate"
               placeholder="Deadline e.g. 2026-03-09 18:00"
-              placeholderTextColor="#91836F"
+              placeholderTextColor={palette.slateMuted}
               value={deadline}
               onChangeText={setDeadline}
             />
             <Pressable
-              className="mt-4 rounded-[20px] bg-[#C5794A] px-4 py-4"
+              className="mt-4 rounded-[20px] bg-teal px-4 py-4"
               onPress={() => {
                 addPersonalTask(title, deadline);
                 setTitle("");
@@ -226,23 +227,23 @@ export default function HomeScreen() {
           {upcomingTasks.map((task) => (
             <Pressable
               key={task.id}
-              className="rounded-[28px] border border-[#D9D0C1] bg-white px-5 py-5"
+              className="rounded-[28px] border border-teal/20 bg-ivory-soft px-5 py-5"
               onPress={() => togglePersonalTask(task.id)}
             >
               <View className="flex-row items-start justify-between gap-4">
                 <View className="flex-1">
-                  <Text className="text-xl font-semibold leading-7 text-[#2A2018]">
+                  <Text className="text-xl font-semibold leading-7 text-slate">
                     {task.title}
                   </Text>
-                  <Text className="mt-2 text-sm font-medium text-[#7E6B53]">
+                  <Text className="mt-2 text-sm font-medium text-slate/65">
                     Due {formatDeadline(task.deadline)}
                   </Text>
                 </View>
-                <View className="rounded-full bg-[#F2ECE4] p-3">
+                <View className="rounded-full bg-teal/10 p-3">
                   <Ionicons
                     name="checkmark-circle-outline"
                     size={22}
-                    color="#7E6B53"
+                    color={palette.slateMuted}
                   />
                 </View>
               </View>
@@ -250,11 +251,11 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        <View className="mt-6 rounded-[28px] bg-[#ECE6DB] px-5 py-5">
-          <Text className="text-lg font-semibold text-[#2A2018]">
+        <View className="mt-6 rounded-[28px] bg-teal/10 px-5 py-5">
+          <Text className="text-lg font-semibold text-slate">
             Why it feels shared
           </Text>
-          <Text className="mt-2 text-sm leading-6 text-[#6D604F]">
+          <Text className="mt-2 text-sm leading-6 text-slate/70">
             Personal tasks stay private, but your daily community check-in
             affects the plant, the level bar, and the whole group&apos;s bonus
             coins.
