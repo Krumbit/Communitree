@@ -1,7 +1,7 @@
 from flask import Blueprint, request, Response, jsonify
 from src.models import *
 from src.constants import *
-from sqlalchemy import select
+from sqlalchemy import select, update
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
@@ -278,12 +278,18 @@ def apply_community_unlockable():
     unlockable_id = data.get('unlockable_id')
 
     user = db.get_or_404(User, user_id)
-    
+
     query = select(CommunityUnlockable).where(
         CommunityUnlockable.community_id == user.community_id,
         CommunityUnlockable.unlockable_id == unlockable_id
     )
     community_unlockable = db.first_or_404(query)
+
+    db.session.execute(
+        update(CommunityUnlockable)
+        .where(CommunityUnlockable.community_id == user.community_id)
+        .values(applied=False)
+    )
 
     community_unlockable.applied = True
     db.session.commit()
