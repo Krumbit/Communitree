@@ -23,29 +23,22 @@ export default function ShopScreen() {
     >
       <View className="px-6 pb-8 pt-16">
         <View className="rounded-[32px] border border-teal/30 bg-slate px-6 py-6">
-          <Text className="text-xs font-semibold uppercase tracking-[2px] text-teal-soft">
-            Shop view
-          </Text>
           <Text className="mt-3 text-4xl font-bold leading-tight text-white">
-            Spend coins on cosmetics for the shared plant.
+            Shop
           </Text>
           <Text className="mt-4 text-base leading-6 text-ivory/80">
-            Rewards stay collaborative: you earn coins individually, then turn
-            that effort into visible upgrades for the whole community.
+            Spend coins on cosmetics for the shared plant.
           </Text>
 
           <View className="mt-6 flex-row items-end justify-between gap-4 rounded-[26px] bg-ivory px-5 py-5">
             <View>
               <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
-                Available balance
+                Balance
               </Text>
               <Text className="mt-2 text-4xl font-bold text-slate">
                 {user.coins}
               </Text>
             </View>
-            <Text className="max-w-[180px] text-right text-sm leading-6 text-slate/70">
-              Buy once, then equip any owned cosmetic whenever you like.
-            </Text>
           </View>
         </View>
 

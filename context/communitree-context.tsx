@@ -93,7 +93,7 @@ const initialUser: User = {
   name: "Yan Slobodianik",
   firstName: "Yan",
   email: "yan@example.com",
-  coins: 11,
+  coins: 110,
   streakDays: 5,
   signedIn: false,
 };

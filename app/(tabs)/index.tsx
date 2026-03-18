@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
@@ -32,6 +32,11 @@ export default function HomeScreen() {
     togglePersonalTask,
     user,
   } = useCommunitree();
+  
+  if (!user.signedIn) {
+    return <Redirect href="/sign-in" />;
+  }
+
   const [showComposer, setShowComposer] = useState(false);
   const [title, setTitle] = useState("");
   const [deadline, setDeadline] = useState("2026-03-09 18:00");
@@ -70,11 +75,8 @@ export default function HomeScreen() {
         <View className="rounded-[32px] border border-teal/30 bg-slate px-6 py-6">
           <View className="flex-row items-start justify-between gap-4">
             <View className="flex-1">
-              <Text className="text-xs font-semibold uppercase tracking-[2px] text-teal-soft">
-                Home dashboard
-              </Text>
               <Text className="mt-3 text-4xl font-bold leading-tight text-ivory">
-                Keep your habits moving and your community plant thriving.
+                Dashboard
               </Text>
               <Text className="mt-4 text-base leading-6 text-ivory/80">
                 Your closest deadlines stay here, while the shared task keeps
@@ -249,17 +251,6 @@ export default function HomeScreen() {
               </View>
             </Pressable>
           ))}
-        </View>
-
-        <View className="mt-6 rounded-[28px] bg-teal/10 px-5 py-5">
-          <Text className="text-lg font-semibold text-slate">
-            Why it feels shared
-          </Text>
-          <Text className="mt-2 text-sm leading-6 text-slate/70">
-            Personal tasks stay private, but your daily community check-in
-            affects the plant, the level bar, and the whole group&apos;s bonus
-            coins.
-          </Text>
         </View>
       </View>
     </ScrollView>
