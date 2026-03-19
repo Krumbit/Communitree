@@ -27,24 +27,20 @@ export default function SignInScreen() {
         </Pressable>
 
         <View className="rounded-[34px] border border-teal/20 bg-ivory-soft px-6 py-6">
-          <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
-            Sign in view
-          </Text>
           <Text className="mt-3 text-4xl font-bold leading-tight text-slate">
-            Join your habit circle and keep the plant alive.
+            Sign in
           </Text>
           <Text className="mt-4 text-base leading-6 text-slate/70">
-            This screen is front-end only. It previews sign-in and account
-            creation without Clerk, Convex, or any backend setup.
+            Join your habit circle and keep the plant alive.
           </Text>
 
           <View className="mt-6 rounded-[26px] bg-teal-mist px-5 py-5">
             <Text className="text-lg font-semibold text-slate">
-              Prototype perks
+              New account perks
             </Text>
             <Text className="mt-2 text-sm leading-6 text-slate/75">
               Every account starts with coins for cosmetic unlocks, a private
-              task list, and one shared community slot.
+              task list, and one community slot.
             </Text>
           </View>
         </View>
@@ -116,11 +112,6 @@ export default function SignInScreen() {
               {isCreateMode ? "Create preview account" : "Sign in to preview"}
             </Text>
           </Pressable>
-
-          <Text className="mt-4 text-center text-sm leading-6 text-slate/65">
-            No real authentication happens here; this just updates local
-            front-end state for the prototype.
-          </Text>
         </View>
       </View>
     </ScrollView>
