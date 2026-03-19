@@ -1,7 +1,7 @@
 from flask import Blueprint, request, Response, jsonify
 from src.models import *
 from src.constants import *
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
@@ -145,6 +145,14 @@ def join_community():
     db.get_or_404(Community, community_id, description=f'A community with id {community_id} does not exist.')
     
     user.community_id = community_id
+
+    query = select(CommunityTask).where(CommunityTask.community_id == community_id)
+    community_tasks = db.session.scalars(query)
+
+    for task in community_tasks:
+        user_task = UserCommunityTask(user_id, task.id)
+        db.session.add(user_task)
+
     db.session.commit()
     
     return jsonify({"success": True})
@@ -157,6 +165,9 @@ def leave_community():
 
     user = db.get_or_404(User, user_id)
     user.community_id = None
+
+    query = delete(UserCommunityTask).where(UserCommunityTask.user_id == user_id)
+    db.session.execute(query)
     db.session.commit()
 
     return jsonify({"success": True})
