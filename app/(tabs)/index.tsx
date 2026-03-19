@@ -78,10 +78,6 @@ export default function HomeScreen() {
               <Text className="mt-3 text-4xl font-bold leading-tight text-ivory">
                 Dashboard
               </Text>
-              <Text className="mt-4 text-base leading-6 text-ivory/80">
-                Your closest deadlines stay here, while the shared task keeps
-                everyone accountable.
-              </Text>
             </View>
 
             <Pressable
@@ -111,18 +107,6 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
-
-        {!user.signedIn ? (
-          <View className="mt-5 rounded-[26px] border border-teal/20 bg-teal/10 px-5 py-5">
-            <Text className="text-lg font-semibold text-slate">
-              Preview mode
-            </Text>
-            <Text className="mt-2 text-sm leading-6 text-slate/70">
-              Sign in is mocked on the front end only. Use the preview form to
-              explore the account flow without any backend.
-            </Text>
-          </View>
-        ) : null}
 
         <View className="mt-6 rounded-[30px] border border-teal/20 bg-ivory-soft px-5 py-5">
           <View className="flex-row items-start justify-between gap-3">
