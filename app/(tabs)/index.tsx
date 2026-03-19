@@ -32,10 +32,6 @@ export default function HomeScreen() {
     togglePersonalTask,
     user,
   } = useCommunitree();
-  
-  if (!user.signedIn) {
-    return <Redirect href="/sign-in" />;
-  }
 
   const [showComposer, setShowComposer] = useState(false);
   const [title, setTitle] = useState("");
@@ -65,6 +61,10 @@ export default function HomeScreen() {
     (member) => member.id === user.id,
   );
   const hasCompletedToday = currentMember?.completedToday ?? false;
+
+  if (!user.signedIn) {
+    return <Redirect href="/sign-in" />;
+  }
 
   return (
     <ScrollView
