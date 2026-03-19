@@ -64,7 +64,7 @@ Returns: json {
 }
 ```
 
-### `create-community`
+### `/create-community`
 
 Method: POST
 Purpose: create a community and make the creator the sole admin
@@ -80,7 +80,7 @@ Returns: json {
 }
 ```
 
-### `join-community`
+### `/join-community`
 
 Method: POST
 Purpose: join a community
@@ -96,7 +96,7 @@ Returns: json {
 }
 ```
 
-### `leave-community`
+### `/leave-community`
 
 Method: POST
 Purpose: leave a community
