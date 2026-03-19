@@ -246,6 +246,8 @@ def complete_community_task():
     user.balance += COINS_FOR_COMPLETE_TASK
     db.session.commit()
 
+    # UPDATE TIER + PROGRESS + PARTICIPATION
+
     return jsonify({"success": True})
 
 
