@@ -3,45 +3,26 @@
 If the `success` is `false` assume that a `message` is present in the json. The other fields will not be present.
 Any endpoint can return a 404 if the data is invalid.
 
-### `/home/<user_id>`
+### `/data/<user_id>`
 
 Method: GET
-Purpose: used to get the home page data.
-```
-Returns: json {
-    'success': Bool,
-    'user': Dict
-}
-```
-
-### `/community/<user_id>`
-
-Method: GET
-Purpose: used to get the community page data.
+Purpose: used to fetch all data required for the app (home page, community page, shop page)
 ```
 Returns: json {
     'success': Bool,
     'user': Dict,
-    'community': Dict
-}
-```
-### `/shop/<user_id>`
-
-Method: GET
-Purpose: used to get the shop page data.
-```
-Returns: json {
-    'success': Bool,
-    'user': Dict,
-    'unlocked_unlockables': Dict,
-    'locked_unlockables': Dict
+    'user_tasks': List[Dict],
+    'community': Dict,
+    'community_tasks': List[Dict],
+    'unlocked': List[Dict]
+    'locked': List[Dict]
 }
 ```
 
 ### `/login`
 
 Method: POST
-Purpose: login the user and get the home page data
+Purpose: login the user and get user data
 ```
 Requires: json {
     'email': String,
@@ -51,14 +32,19 @@ Requires: json {
 ```
 Returns: json {
     'success': Bool,
-    'user': Dict
+    'user': Dict,
+    'user_tasks': List[Dict],
+    'community': Dict,
+    'community_tasks': List[Dict],
+    'unlocked': List[Dict]
+    'locked': List[Dict]
 }
 ```
 
 ### `/signup`
 
 Method: POST
-Purpose: create a new user and get the home page data
+Purpose: create a new user and get user data
 ```
 Requires: json {
     'email': String,
@@ -69,7 +55,12 @@ Requires: json {
 ```
 Returns: json {
     'success': Bool,
-    'user': Dict
+    'user': Dict,
+    'user_tasks': List[Dict],
+    'community': Dict,
+    'community_tasks': List[Dict],
+    'unlocked': List[Dict]
+    'locked': List[Dict]
 }
 ```
 
