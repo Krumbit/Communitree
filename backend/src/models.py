@@ -16,7 +16,7 @@ class UserCommunityTask(Base):
 
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), primary_key=True, init=True)
     community_task_id: Mapped[int] = mapped_column(ForeignKey("community_task.id", ondelete="CASCADE"), primary_key=True, init=True)
-    date_completed: Mapped[datetime] = mapped_column(server_default=func.now()) # automatically stamps when the record is created
+    date_completed: Mapped[datetime] = mapped_column(server_default=func.now(), init=False) # automatically stamps when the record is created
     
     user: Mapped["User"] = relationship(back_populates="user_community_tasks", init=False)
     community_task: Mapped["CommunityTask"] = relationship(back_populates="user_community_tasks", init=False)
@@ -84,7 +84,7 @@ class UserTask(Base):
     description: Mapped[str] = mapped_column(init=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), init=True)
     completed: Mapped[bool] = mapped_column(default=False, init=False)
-    created_date: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_date: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
     completed_date: Mapped[datetime] = mapped_column(init=False)
 
     user: Mapped["User"] = relationship(back_populates="user_tasks", init=False)
@@ -128,7 +128,7 @@ class CommunityTask(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
     description: Mapped[str] = mapped_column(init=True)
     community_id: Mapped[int] = mapped_column(ForeignKey("community.id", ondelete="CASCADE"), init=True)
-    created_date: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_date: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
 
     community: Mapped["Community"] = relationship(back_populates="community_tasks", init=False)
     user_community_tasks: Mapped[List["UserCommunityTask"]] = relationship(back_populates="community_task", cascade="all, delete-orphan", init=False)

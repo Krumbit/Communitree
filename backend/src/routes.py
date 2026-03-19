@@ -1,70 +1,99 @@
 from flask import Blueprint, request, Response, jsonify
 from src.models import *
 from src.constants import *
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, and_
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+from datetime import datetime, timedelta
 
 routes = Blueprint('main', __name__)
 ph = PasswordHasher()
 
-@routes.route('/home/<int:user_id>', methods=['GET'])
-def get_home_page_data(user_id: int) -> Response:
+
+def gen_user_tasks_query(user_id: int):
+    return (
+        select(UserTask)
+        .where(
+            UserTask.user_id == user_id and
+            UserTask.created_date > datetime.now() - timedelta(days=7) and
+            UserTask.completed == False
+        )
+    )
+
+
+def gen_community_tasks_query(user_id: int):
+    return (
+        select(CommunityTask)
+        .outerjoin(
+            UserCommunityTask,
+            and_(
+                UserCommunityTask.community_task_id == CommunityTask.id,
+                UserCommunityTask.user_id == user_id
+            )
+        )
+        .where(
+            and_(
+                UserCommunityTask.user_id == None, # not completed task yet
+                CommunityTask.created_date > datetime.now() - timedelta(days=7)
+            )   
+        )
+    )
+
+
+def gen_unlocked_query(community_id: int):
+    return (
+        select(Unlockable)
+        .join(CommunityUnlockable) 
+        .where(CommunityUnlockable.community_id == community_id)
+    )
+
+
+def gen_locked_query(community_id: int):
+    return (
+        select(Unlockable)
+        .outerjoin(
+            CommunityUnlockable,
+            and_(
+                CommunityUnlockable.unlockable_id == Unlockable.id,
+                CommunityUnlockable.community_id == community_id
+            )
+        )
+        .where(
+            CommunityUnlockable.community_id == None
+        )
+    )
+
+
+def query_user_data(user_id: int):
     user = db.get_or_404(User, user_id)
-
-    return jsonify({
-        "success": True,
-        "user": user.to_dict()
-    })
-
-
-@routes.route('/community/<int:user_id>', methods=['GET'])
-def get_community_page_data(user_id: int) -> Response:
-    user = db.get_or_404(User, user_id)
-    
-    community = None
-    if user.community_id is not None:
-        community = db.session.get(Community, user.community_id)
-
-    if community is None:
-        return jsonify({
-            "success": False,
-            "message": "Join a community to view the community page."
-        })
-
-    return jsonify({
-        "success": True,
-        "user": user.to_dict(), 
-        "community": community.to_dict()
-    })
-
-
-@routes.route('/shop/<int:user_id>', methods=['GET'])
-def get_shop_page_data(user_id: int) -> Response:
-    user = db.get_or_404(User, user_id)
+    user_tasks = db.session.scalars(gen_user_tasks_query(user.id)).all()
 
     if user.community_id is None:
         return jsonify({
-            "success": False,
-            "message": "Join a community to view the community shop page."
-        })
+            'success': True,
+            'user': user.to_dict(),
+            'user_tasks': [t.to_dict() for t in user_tasks]
+        })    
 
-    unlocked_query = select(CommunityUnlockable).where(CommunityUnlockable.community_id == user.community_id)
-    unlocked = db.session.scalars(unlocked_query).all()
-    
-    locked_query = select(Unlockable).where(
-        ~Unlockable.community_unlockables.any(
-            CommunityUnlockable.community_id == user.community_id
-        )
-    )
-    locked = db.session.scalars(locked_query).all()
+    community = db.get_or_404(Community, user.community_id)
+    community_tasks = db.session.scalars(gen_community_tasks_query(user.id)).all()
+    unlocked = db.session.scalars(gen_unlocked_query(community.id)).all()
+    locked = db.session.scalars(gen_locked_query(community.id)).all()
 
     return jsonify({
-        "success": True,
-        "user": user.to_dict(), 
-        "unlocked_unlockables": [u.to_dict() for u in unlocked], 
-        "locked_unlockables": [l.to_dict() for l in locked]
-    })
+        'success': True,
+        'user': user.to_dict(),
+        'user_tasks': [t.to_dict() for t in user_tasks],
+        'community': community.to_dict(),
+        'community_tasks': [t.to_dict() for t in community_tasks],
+        'unlocked': [u.to_dict() for u in unlocked],
+        'locked': [l.to_dict() for l in locked]
+    })   
+
+
+@routes.route('/data/<int:user_id>', methods=['GET'])
+def get_user_data(user_id: int) -> Response:
+    return query_user_data(user_id)
 
 
 @routes.route('/login', methods=['POST'])
@@ -84,10 +113,7 @@ def login():
             "message": "Password entered incorrectly."
         })
 
-    return jsonify({
-        "success": True,
-        "user": user.to_dict()
-    })
+    return query_user_data(user.id)
 
 
 @routes.route('/signup', methods=['POST'])
@@ -108,14 +134,11 @@ def sign_up():
             "message": "A user already exists with this email or username."
         })
 
-    user = User(username=username, email=email, passhash=passhash)
+    user = User(username, email, passhash)
     db.session.add(user)
     db.session.commit()
 
-    return jsonify({
-        "success": True,
-        "user": user.to_dict()
-    })
+    return query_user_data(user.id)
 
 
 @routes.route('/create-community', methods=['POST'])
@@ -145,14 +168,6 @@ def join_community():
     db.get_or_404(Community, community_id, description=f'A community with id {community_id} does not exist.')
     
     user.community_id = community_id
-
-    query = select(CommunityTask).where(CommunityTask.community_id == community_id)
-    community_tasks = db.session.scalars(query)
-
-    for task in community_tasks:
-        user_task = UserCommunityTask(user_id, task.id)
-        db.session.add(user_task)
-
     db.session.commit()
     
     return jsonify({"success": True})
@@ -179,7 +194,7 @@ def create_user_task():
     user_id = data.get('user_id')
     task_description = data.get('task_description')
 
-    user = db.get_or_404(User, user_id)
+    user = db.get_or_404(User, user_id) # check user with user_id exists
     task = UserTask(task_description, user_id)
     db.session.add(task)
     db.session.commit()
@@ -197,6 +212,7 @@ def complete_user_task():
     task = db.get_or_404(UserTask, task_id)
     
     task.completed = True
+    task.completed_date = func.now()
     user.balance += COINS_FOR_COMPLETE_TASK
     db.session.commit()
 
@@ -217,12 +233,6 @@ def create_community_task():
 
     task = CommunityTask(description, community.id)
     db.session.add(task)
-    db.session.flush()
-
-    for community_user in community.users:
-        user_task = UserCommunityTask(community_user.id, task.id)
-        db.session.add(user_task)
-
     db.session.commit()
 
     return jsonify({"success": True})
@@ -246,7 +256,7 @@ def complete_community_task():
     user.balance += COINS_FOR_COMPLETE_TASK
     db.session.commit()
 
-    # UPDATE TIER + PROGRESS + PARTICIPATION
+    # update tier + tier progress + streak
 
     return jsonify({"success": True})
 
@@ -277,7 +287,7 @@ def buy_community_unlockable():
         return jsonify({"success": False, "message": "Insufficient balance."})
 
     user.balance -= unlockable.price
-    new_unlock = CommunityUnlockable(community_id=user.community_id, unlockable_id=unlockable_id)
+    new_unlock = CommunityUnlockable(user.community_id, unlockable_id)
     db.session.add(new_unlock)
     db.session.commit()
 
@@ -296,11 +306,25 @@ def apply_community_unlockable():
         CommunityUnlockable.community_id == user.community_id,
         CommunityUnlockable.unlockable_id == unlockable_id
     )
+
+    unlockable = db.get_or_404(Unlockable, unlockable_id)
     community_unlockable = db.first_or_404(query)
+
+    unlockables_in_category = (
+        select(Unlockable.id)
+        .where(
+            Unlockable.category == unlockable.category
+        )
+    )
 
     db.session.execute(
         update(CommunityUnlockable)
-        .where(CommunityUnlockable.community_id == user.community_id)
+        .where(
+            and_(
+                CommunityUnlockable.community_id == user.community_id,
+                CommunityUnlockable.unlockable_id.in_(unlockables_in_category)
+            )
+        )
         .values(applied=False)
     )
 
