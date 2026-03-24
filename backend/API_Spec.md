@@ -1,28 +1,33 @@
 # Backend API Spec
 
-If the `success` is `false` assume that a `message` is present in the json. The other fields will not be present.
-Any endpoint can return a 404 if the data is invalid.
+If `success` is `false`, a `message` field will be present. Other fields will not be present.
+Any endpoint can return a 404 if the referenced resource does not exist.
+
+---
 
 ### `/data/<user_id>`
 
 Method: GET
-Purpose: used to fetch all data required for the app (home page, community page, shop page)
+Purpose: Fetch all data required for the app (home, community, shop). Also triggers the lazy daily reset for the user's community.
 ```
 Returns: json {
     'success': Bool,
     'user': Dict,
     'user_tasks': List[Dict],
-    'community': Dict,
+    // Only present if user is in a community:
+    'community': Dict,           // includes 'members' list with 'completedToday' per member
     'community_tasks': List[Dict],
-    'unlocked': List[Dict]
+    'unlocked': List[Dict],
     'locked': List[Dict]
 }
 ```
 
+---
+
 ### `/login`
 
 Method: POST
-Purpose: login the user and get user data
+Purpose: Authenticate the user and return all app data.
 ```
 Requires: json {
     'email': String,
@@ -36,20 +41,22 @@ Returns: json {
     'user_tasks': List[Dict],
     'community': Dict,
     'community_tasks': List[Dict],
-    'unlocked': List[Dict]
+    'unlocked': List[Dict],
     'locked': List[Dict]
 }
 ```
 
+---
+
 ### `/signup`
 
 Method: POST
-Purpose: create a new user and get user data
+Purpose: Create a new user account and return all app data.
 ```
 Requires: json {
+    'username': String,
     'email': String,
-    'password': String,
-    'username': String
+    'password': String
 }
 ```
 ```
@@ -59,15 +66,17 @@ Returns: json {
     'user_tasks': List[Dict],
     'community': Dict,
     'community_tasks': List[Dict],
-    'unlocked': List[Dict]
+    'unlocked': List[Dict],
     'locked': List[Dict]
 }
 ```
 
+---
+
 ### `/create-community`
 
 Method: POST
-Purpose: create a community and make the creator the sole admin
+Purpose: Create a community and make the creator the sole admin.
 ```
 Requires: json {
     'user_id': Int,
@@ -76,18 +85,21 @@ Requires: json {
 ```
 ```
 Returns: json {
-    'success': Bool
+    'success': Bool,
+    'code': String    // e.g. "GROW-42" — share with others to join
 }
 ```
+
+---
 
 ### `/join-community`
 
 Method: POST
-Purpose: join a community
+Purpose: Join a community using its invite code.
 ```
 Requires: json {
     'user_id': Int,
-    'community_id': Int
+    'code': String    // format: "GROW-{id}", e.g. "GROW-42"
 }
 ```
 ```
@@ -96,10 +108,12 @@ Returns: json {
 }
 ```
 
+---
+
 ### `/leave-community`
 
 Method: POST
-Purpose: leave a community
+Purpose: Leave the current community. If the leaving user is admin, ownership is randomly transferred to another member.
 ```
 Requires: json {
     'user_id': Int
@@ -111,14 +125,17 @@ Returns: json {
 }
 ```
 
+---
+
 ### `/create-user-task`
 
 Method: POST
-Purpose: create a task for a single user
+Purpose: Create a personal task for a single user.
 ```
 Requires: json {
     'user_id': Int,
-    'task_description': String
+    'task_description': String,
+    'deadline': String | null    // ISO 8601 datetime, e.g. "2026-03-20T18:00:00"
 }
 ```
 ```
@@ -127,10 +144,12 @@ Returns: json {
 }
 ```
 
+---
+
 ### `/complete-user-task`
 
 Method: POST
-Purpose: complete a task for a single user
+Purpose: Mark a personal task as complete.
 ```
 Requires: json {
     'user_id': Int,
@@ -143,10 +162,30 @@ Returns: json {
 }
 ```
 
+---
+
+### `/uncomplete-user-task`
+
+Method: POST
+Purpose: Undo completion of a personal task.
+```
+Requires: json {
+    'user_id': Int,
+    'task_id': Int
+}
+```
+```
+Returns: json {
+    'success': Bool
+}
+```
+
+---
+
 ### `/create-community-task`
 
 Method: POST
-Purpose: create a task for a community
+Purpose: Set the community's shared task. Admin only.
 ```
 Requires: json {
     'user_id': Int,
@@ -158,15 +197,17 @@ Returns: json {
     'success': Bool
 }
 ```
+
+---
 
 ### `/complete-community-task`
 
 Method: POST
-Purpose: complete a task for a community
+Purpose: Check in on the current community task. Awards +1 coin to the user. Returns an error if already checked in.
 ```
 Requires: json {
     'user_id': Int,
-    'community_task_id': String
+    'community_task_id': Int
 }
 ```
 ```
@@ -175,14 +216,16 @@ Returns: json {
 }
 ```
 
-### `/create-user-task`
+---
+
+### `/undo-community-checkin`
 
 Method: POST
-Purpose: create a task for a single user
+Purpose: Undo a community task check-in. Reverses the +1 coin award (balance floored at 0).
 ```
 Requires: json {
     'user_id': Int,
-    'task_description': String
+    'community_task_id': Int
 }
 ```
 ```
@@ -190,11 +233,13 @@ Returns: json {
     'success': Bool
 }
 ```
+
+---
 
 ### `/buy-community-unlockable`
 
 Method: POST
-Purpose: buy a community an unlockable
+Purpose: Purchase a cosmetic unlockable for the community using the user's coin balance.
 ```
 Requires: json {
     'user_id': Int,
@@ -206,11 +251,13 @@ Returns: json {
     'success': Bool
 }
 ```
+
+---
 
 ### `/apply-community-unlockable`
 
 Method: POST
-Purpose: apply an unlockable to the community (changes for all users)
+Purpose: Equip a purchased unlockable on the community plant. Unequips any other item in the same category.
 ```
 Requires: json {
     'user_id': Int,
@@ -222,3 +269,96 @@ Returns: json {
     'success': Bool
 }
 ```
+
+---
+
+## Data shapes
+
+### User dict
+```
+{
+    'id': Int,
+    'username': String,
+    'email': String,
+    'balance': Int,
+    'admin': Bool,
+    'community_id': Int | null,
+    'streak_days': Int
+}
+```
+
+### UserTask dict
+```
+{
+    'id': Int,
+    'description': String,
+    'user_id': Int,
+    'deadline': String | null,    // ISO datetime
+    'completed': Bool,
+    'created_date': String,
+    'completed_date': String | null
+}
+```
+
+### Community dict
+```
+{
+    'id': Int,
+    'name': String,
+    'code': String,               // "GROW-{id}"
+    'tier': Int,                  // 0–7, indexes into PLANT_TIERS
+    'tier_progress': Float,       // 0.0–1.0
+    'members': [
+        {
+            'id': Int,
+            'username': String,
+            'role': 'owner' | 'member',
+            'completedToday': Bool    // injected by query_user_data
+        }
+    ]
+}
+```
+
+### CommunityTask dict
+```
+{
+    'id': Int,
+    'description': String,
+    'community_id': Int,
+    'created_date': String
+}
+```
+
+### Unlockable dict
+```
+{
+    'id': Int,
+    'price': Int,
+    'category': String,
+    'minimum_tier': Int
+}
+```
+
+### CommunityUnlockable dict
+```
+{
+    'community_id': Int,
+    'unlockable_id': Int,
+    'applied': Bool,
+    'unlockable': Unlockable dict
+}
+```
+
+---
+
+## Coin reward summary
+
+| Event | Amount | Type |
+|-------|--------|------|
+| Complete daily community task | +1 | Individual, on check-in |
+| 7-day streak milestone | +3 | Individual, on daily reset |
+| Entire community completes on a day | +2 | Collective, on daily reset |
+
+## Daily reset
+
+Triggered lazily inside `/data/<user_id>` when `community.last_reset_date` is not today. Calculates the previous day's completion rate, updates `tier` / `tier_progress`, awards streak and collective bonuses, and updates each member's `streak_days`.

@@ -16,8 +16,8 @@ class UserCommunityTask(Base):
 
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), primary_key=True, init=True)
     community_task_id: Mapped[int] = mapped_column(ForeignKey("community_task.id", ondelete="CASCADE"), primary_key=True, init=True)
-    date_completed: Mapped[datetime] = mapped_column(server_default=func.now(), init=False) # automatically stamps when the record is created
-    
+    date_completed: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
+
     user: Mapped["User"] = relationship(back_populates="user_community_tasks", init=False)
     community_task: Mapped["CommunityTask"] = relationship(back_populates="user_community_tasks", init=False)
 
@@ -44,9 +44,9 @@ class CommunityUnlockable(Base):
             "community_id": self.community_id,
             "unlockable_id": self.unlockable_id,
             "applied": self.applied,
-            "unlockable": self.unlockable.to_dict() # not circular
+            "unlockable": self.unlockable.to_dict()
         }
-    
+
 
 # main entities
 
@@ -61,11 +61,13 @@ class User(Base):
     balance: Mapped[int] = mapped_column(default=0, init=False)
     admin: Mapped[bool] = mapped_column(default=False, init=False)
     community_id: Mapped[int | None] = mapped_column(ForeignKey("community.id"), default=None, init=False)
+    streak_days: Mapped[int] = mapped_column(default=0, init=False)
+    streak_last_updated: Mapped[datetime | None] = mapped_column(default=None, init=False)
 
     user_tasks: Mapped[List["UserTask"]] = relationship(back_populates="user", cascade="all, delete-orphan", init=False)
     user_community_tasks: Mapped[List["UserCommunityTask"]] = relationship(back_populates="user", cascade="all, delete-orphan", init=False)
     community: Mapped["Community"] = relationship(back_populates="users", init=False)
-    
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -74,6 +76,7 @@ class User(Base):
             "balance": self.balance,
             "admin": self.admin,
             "community_id": self.community_id,
+            "streak_days": self.streak_days,
         }
 
 
@@ -83,9 +86,10 @@ class UserTask(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
     description: Mapped[str] = mapped_column(init=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), init=True)
+    deadline: Mapped[datetime | None] = mapped_column(default=None, init=False)
     completed: Mapped[bool] = mapped_column(default=False, init=False)
     created_date: Mapped[datetime] = mapped_column(server_default=func.now(), init=False)
-    completed_date: Mapped[datetime] = mapped_column(init=False)
+    completed_date: Mapped[datetime | None] = mapped_column(default=None, init=False)
 
     user: Mapped["User"] = relationship(back_populates="user_tasks", init=False)
 
@@ -94,6 +98,7 @@ class UserTask(Base):
             "id": self.id,
             "description": self.description,
             "user_id": self.user_id,
+            "deadline": self.deadline,
             "completed": self.completed,
             "created_date": self.created_date,
             "completed_date": self.completed_date
@@ -107,6 +112,7 @@ class Community(Base):
     name: Mapped[str] = mapped_column(init=True)
     tier_progress: Mapped[float] = mapped_column(default=0.0, init=False)
     tier: Mapped[int] = mapped_column(default=0, init=False)
+    last_reset_date: Mapped[datetime | None] = mapped_column(default=None, init=False)
 
     users: Mapped[List["User"]] = relationship(back_populates="community", init=False)
     community_tasks: Mapped[List["CommunityTask"]] = relationship(back_populates="community", cascade="all, delete-orphan", init=False)
@@ -116,9 +122,17 @@ class Community(Base):
         return {
             "id": self.id,
             "name": self.name,
+            "code": f"GROW-{self.id}",
             "tier_progress": self.tier_progress,
             "tier": self.tier,
-            "user_usernames": [user.username for user in self.users],
+            "members": [
+                {
+                    "id": u.id,
+                    "username": u.username,
+                    "role": "owner" if u.admin else "member",
+                }
+                for u in self.users
+            ],
         }
 
 
@@ -141,7 +155,7 @@ class CommunityTask(Base):
             "created_date": self.created_date
         }
 
-    
+
 class Unlockable(Base):
     __tablename__ = "unlockable"
 

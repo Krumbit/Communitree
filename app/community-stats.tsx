@@ -6,11 +6,13 @@ import { palette } from "@/constants/palette";
 import { useCommunitree } from "@/context/communitree-context";
 
 export default function CommunityStatsScreen() {
-  const { community, completionRate, user } = useCommunitree();
+  const { community, completionRate, personalTasks, user } = useCommunitree();
 
   const totalCoins =
     community.weeklyHistory.reduce((sum, week) => sum + week.coinsEarned, 0) +
     user.coins;
+  const completedPersonalTasks = personalTasks.filter((t) => t.completed).length;
+  const reversedHistory = [...community.weeklyHistory].reverse();
   const averageCompletion =
     community.weeklyHistory.reduce(
       (sum, week) => sum + week.completionRate,
@@ -39,11 +41,7 @@ export default function CommunityStatsScreen() {
             Community stats
           </Text>
           <Text className="mt-3 text-4xl font-bold leading-tight text-white">
-            Track how shared consistency shapes the plant over time.
-          </Text>
-          <Text className="mt-4 text-base leading-6 text-ivory/80">
-            This view mirrors the design document: week-by-week completion
-            trends, all-time performance, and collective reward signals.
+            {community.name}
           </Text>
         </View>
 
@@ -85,7 +83,40 @@ export default function CommunityStatsScreen() {
           </View>
         </View>
 
-        <View className="mt-8 rounded-[32px] border border-teal/20 bg-ivory-soft px-5 py-5">
+        {/* Personal stats */}
+        <View className="mt-6 rounded-[32px] border border-teal/20 bg-ivory-soft px-5 py-5">
+          <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
+            Your stats
+          </Text>
+          <View className="mt-4 flex-row gap-3">
+            <View className="flex-1 rounded-[20px] bg-ivory px-4 py-4">
+              <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
+                Tasks done
+              </Text>
+              <Text className="mt-2 text-2xl font-bold text-slate">
+                {completedPersonalTasks}
+              </Text>
+            </View>
+            <View className="flex-1 rounded-[20px] bg-teal-mist px-4 py-4">
+              <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
+                Streak
+              </Text>
+              <Text className="mt-2 text-2xl font-bold text-slate">
+                {user.streakDays}d
+              </Text>
+            </View>
+            <View className="flex-1 rounded-[20px] bg-teal/10 px-4 py-4">
+              <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
+                Coins
+              </Text>
+              <Text className="mt-2 text-2xl font-bold text-slate">
+                {user.coins}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View className="mt-6 rounded-[32px] border border-teal/20 bg-ivory-soft px-5 py-5">
           <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
             This week
           </Text>
@@ -115,7 +146,7 @@ export default function CommunityStatsScreen() {
           </Text>
 
           <View className="mt-4 gap-4">
-            {community.weeklyHistory.map((week) => (
+            {reversedHistory.map((week) => (
               <View
                 key={week.week}
                 className="rounded-[28px] border border-teal/20 bg-ivory-soft px-5 py-5"

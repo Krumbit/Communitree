@@ -57,8 +57,9 @@ type Community = {
   currentTaskTitle: string;
   currentTaskEnds: string;
   dailyThreshold: number;
+  // mirrors community.tier in the backend — index into PLANT_TIERS
   plantLevel: number;
-  plantName: string;
+  // mirrors community.tier_progress (0–100 in mock, 0.0–1.0 in backend)
   levelProgress: number;
   members: Member[];
   weeklyHistory: WeeklyStat[];
@@ -69,6 +70,8 @@ type SignInPayload = {
   email: string;
 };
 
+type ActionResult = { ok: boolean; message: string };
+
 type CommunitreeContextValue = {
   user: User;
   community: Community;
@@ -77,15 +80,25 @@ type CommunitreeContextValue = {
   equipped: Record<UnlockableCategory, string>;
   completionRate: number;
   completedCount: number;
+  inCommunity: boolean;
   isOwner: boolean;
   togglePersonalTask: (taskId: string) => void;
   addPersonalTask: (title: string, deadline: string) => void;
   toggleCommunityCompletion: () => void;
+  // mirrors POST /create-community-task { user_id, task_description }
   createCommunityTask: (title: string) => void;
-  joinCommunity: (code: string) => { ok: boolean; message: string };
-  buyUnlockable: (unlockableId: string) => { ok: boolean; message: string };
+  // mirrors POST /join-community { user_id, community_id } — code lookup TBD in real backend
+  joinCommunity: (code: string) => ActionResult;
+  // mirrors POST /leave-community { user_id }
+  leaveCommunity: () => void;
+  // mirrors POST /create-community { user_id, community_name }
+  createCommunity: (name: string) => ActionResult;
+  // mirrors POST /buy-community-unlockable { user_id, unlockable_id }
+  buyUnlockable: (unlockableId: string) => ActionResult;
+  // mirrors POST /apply-community-unlockable { user_id, unlockable_id }
   equipUnlockable: (unlockableId: string) => void;
   signInMock: (payload: SignInPayload) => void;
+  signOut: () => void;
 };
 
 const initialUser: User = {
@@ -137,8 +150,7 @@ const initialCommunity: Community = {
   currentTaskTitle: "30-minute focused study block",
   currentTaskEnds: "Resets each night at 11:59 PM",
   dailyThreshold: 0.5,
-  plantLevel: 7,
-  plantName: "Monstera Bloom",
+  plantLevel: 6,
   levelProgress: 72,
   members: [
     {
@@ -260,6 +272,7 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
   const [personalTasks, setPersonalTasks] = useState(initialPersonalTasks);
   const [unlockables, setUnlockables] = useState(initialUnlockables);
   const [equipped, setEquipped] = useState(initialEquipped);
+  const [inCommunity, setInCommunity] = useState(true);
 
   const completedCount = community.members.filter(
     (member) => member.completedToday,
@@ -374,10 +387,45 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
         };
       }
 
+      setInCommunity(true);
       return {
         ok: true,
-        message: `Joined ${community.name}. In the prototype, you are already in this community.`,
+        message: `Joined ${community.name}.`,
       };
+    };
+
+    const leaveCommunity = () => {
+      setInCommunity(false);
+    };
+
+    const createCommunity = (name: string): ActionResult => {
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        return { ok: false, message: "Community name cannot be empty." };
+      }
+
+      const initials = user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase();
+
+      setCommunity((current) => ({
+        ...current,
+        name: trimmedName,
+        code: `GROW-${Math.floor(Math.random() * 90) + 10}`,
+        members: [
+          {
+            id: user.id,
+            name: user.firstName,
+            initials,
+            completedToday: false,
+            role: "owner" as const,
+          },
+        ],
+      }));
+      setInCommunity(true);
+      return { ok: true, message: `"${trimmedName}" created. Share your code with friends.` };
     };
 
     const buyUnlockable = (unlockableId: string) => {
@@ -446,6 +494,10 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
       }));
     };
 
+    const signOut = () => {
+      setUser((current) => ({ ...current, signedIn: false }));
+    };
+
     return {
       user,
       community,
@@ -454,21 +506,26 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
       equipped,
       completionRate,
       completedCount,
+      inCommunity,
       isOwner,
       togglePersonalTask,
       addPersonalTask,
       toggleCommunityCompletion,
       createCommunityTask,
       joinCommunity,
+      leaveCommunity,
+      createCommunity,
       buyUnlockable,
       equipUnlockable,
       signInMock,
+      signOut,
     };
   }, [
     community,
     completionRate,
     completedCount,
     equipped,
+    inCommunity,
     isOwner,
     personalTasks,
     unlockables,

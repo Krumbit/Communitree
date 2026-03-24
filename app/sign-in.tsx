@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -19,13 +18,6 @@ export default function SignInScreen() {
       contentContainerStyle={{ paddingBottom: 36 }}
     >
       <View className="px-6 pb-8 pt-16">
-        <Pressable
-          className="mb-6 w-12 rounded-full border border-teal/20 bg-ivory-soft p-3"
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={20} color={palette.slate} />
-        </Pressable>
-
         <View className="rounded-[34px] border border-teal/20 bg-ivory-soft px-6 py-6">
           <Text className="mt-3 text-4xl font-bold leading-tight text-slate">
             Sign in

@@ -1,7 +1,10 @@
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, router } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import { palette } from "@/constants/palette";
 import { useCommunitree } from "@/context/communitree-context";
@@ -35,26 +38,26 @@ export default function HomeScreen() {
 
   const [showComposer, setShowComposer] = useState(false);
   const [title, setTitle] = useState("");
-  const [deadline, setDeadline] = useState("2026-03-09 18:00");
+  const [deadline, setDeadline] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const upcomingTasks = useMemo(() => {
-    return [...personalTasks]
-      .filter((task) => !task.completed)
-      .sort((left, right) => {
-        const leftTime = new Date(left.deadline).getTime();
-        const rightTime = new Date(right.deadline).getTime();
+  const byDeadlineAsc = (a: { deadline: string }, b: { deadline: string }) => {
+    const at = new Date(a.deadline).getTime();
+    const bt = new Date(b.deadline).getTime();
+    if (Number.isNaN(at)) return 1;
+    if (Number.isNaN(bt)) return -1;
+    return at - bt;
+  };
 
-        if (Number.isNaN(leftTime)) {
-          return 1;
-        }
-
-        if (Number.isNaN(rightTime)) {
-          return -1;
-        }
-
-        return leftTime - rightTime;
-      })
-      .slice(0, 4);
+  const { activeTasks, completedTasks } = useMemo(() => {
+    const active = [...personalTasks]
+      .filter((t) => !t.completed)
+      .sort(byDeadlineAsc);
+    const completed = [...personalTasks]
+      .filter((t) => t.completed)
+      .sort((a, b) => byDeadlineAsc(b, a));
+    return { activeTasks: active, completedTasks: completed };
   }, [personalTasks]);
 
   const currentMember = community.members.find(
@@ -82,7 +85,7 @@ export default function HomeScreen() {
 
             <Pressable
               className="rounded-full border border-teal/60 px-4 py-3"
-              onPress={() => router.push("../sign-in")}
+              onPress={() => router.push("../profile")}
             >
               <Ionicons name="person-outline" size={18} color={palette.ivory} />
             </Pressable>
@@ -186,19 +189,68 @@ export default function HomeScreen() {
               value={title}
               onChangeText={setTitle}
             />
-            <TextInput
-              className="mt-3 rounded-[20px] border border-teal/20 bg-ivory px-4 py-4 text-base text-slate"
-              placeholder="Deadline e.g. 2026-03-09 18:00"
-              placeholderTextColor={palette.slateMuted}
-              value={deadline}
-              onChangeText={setDeadline}
-            />
+            <Pressable
+              className="mt-3 flex-row items-center justify-between rounded-[20px] border border-teal/20 bg-ivory px-4 py-4"
+              onPress={() => setShowDatePicker((v) => !v)}
+            >
+              <Text className="text-base text-slate">
+                {deadline.toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </Text>
+              <Ionicons name="calendar-outline" size={18} color={palette.slateMuted} />
+            </Pressable>
+
+            {showDatePicker ? (
+              <DateTimePicker
+                value={deadline}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(_event: DateTimePickerEvent, selected?: Date) => {
+                  if (Platform.OS === "android") setShowDatePicker(false);
+                  if (selected) {
+                    setDeadline(selected);
+                    if (Platform.OS === "android") setShowTimePicker(true);
+                  }
+                }}
+              />
+            ) : null}
+
+            <Pressable
+              className="mt-3 flex-row items-center justify-between rounded-[20px] border border-teal/20 bg-ivory px-4 py-4"
+              onPress={() => setShowTimePicker((v) => !v)}
+            >
+              <Text className="text-base text-slate">
+                {deadline.toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </Text>
+              <Ionicons name="time-outline" size={18} color={palette.slateMuted} />
+            </Pressable>
+
+            {showTimePicker ? (
+              <DateTimePicker
+                value={deadline}
+                mode="time"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                onChange={(_event: DateTimePickerEvent, selected?: Date) => {
+                  if (Platform.OS === "android") setShowTimePicker(false);
+                  if (selected) setDeadline(selected);
+                }}
+              />
+            ) : null}
+
             <Pressable
               className="mt-4 rounded-[20px] bg-teal px-4 py-4"
               onPress={() => {
-                addPersonalTask(title, deadline);
+                addPersonalTask(title, deadline.toISOString());
                 setTitle("");
-                setDeadline("2026-03-09 18:00");
+                setDeadline(new Date());
+                setShowDatePicker(false);
+                setShowTimePicker(false);
                 setShowComposer(false);
               }}
             >
@@ -210,7 +262,7 @@ export default function HomeScreen() {
         ) : null}
 
         <View className="mt-4 gap-4">
-          {upcomingTasks.map((task) => (
+          {activeTasks.map((task) => (
             <Pressable
               key={task.id}
               className="rounded-[28px] border border-teal/20 bg-ivory-soft px-5 py-5"
@@ -236,6 +288,58 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </View>
+
+        {completedTasks.length > 0 ? (
+          <View className="mt-8">
+            <View className="flex-row items-center justify-between">
+              <View>
+                <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
+                  Completed
+                </Text>
+                <Text className="mt-2 text-2xl font-bold text-slate">
+                  Habit history
+                </Text>
+              </View>
+              {completedTasks.length > 3 ? (
+                <Pressable
+                  className="rounded-full bg-slate/10 px-4 py-2"
+                  onPress={() => router.push("../habit-history")}
+                >
+                  <Text className="text-sm font-semibold text-slate">
+                    See all
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+            <View className="mt-4 gap-4">
+              {completedTasks.slice(0, 3).map((task) => (
+                <Pressable
+                  key={task.id}
+                  className="rounded-[28px] border border-teal/10 bg-slate/5 px-5 py-5"
+                  onPress={() => togglePersonalTask(task.id)}
+                >
+                  <View className="flex-row items-start justify-between gap-4">
+                    <View className="flex-1">
+                      <Text className="text-xl font-semibold leading-7 text-slate/40 line-through">
+                        {task.title}
+                      </Text>
+                      <Text className="mt-2 text-sm font-medium text-slate/40">
+                        Due {formatDeadline(task.deadline)}
+                      </Text>
+                    </View>
+                    <View className="rounded-full bg-teal/15 p-3">
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={22}
+                        color={palette.teal}
+                      />
+                    </View>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );

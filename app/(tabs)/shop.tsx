@@ -1,11 +1,22 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
+import { PlantPreview } from "@/components/PlantPreview";
+import { palette } from "@/constants/palette";
 import { useCommunitree } from "@/context/communitree-context";
 
 export default function ShopScreen() {
   const { buyUnlockable, equipUnlockable, equipped, unlockables, user } =
     useCommunitree();
+
+  const equippedItems = useMemo(() => {
+    return {
+      pot: unlockables.find((item) => item.id === equipped.pot),
+      ribbon: unlockables.find((item) => item.id === equipped.ribbon),
+      ornament: unlockables.find((item) => item.id === equipped.ornament),
+    };
+  }, [equipped, unlockables]);
+
   const [message, setMessage] = useState("");
 
   const groupedUnlockables = useMemo(() => {
@@ -50,35 +61,11 @@ export default function ShopScreen() {
             Live plant preview
           </Text>
 
-          <View className="relative mt-8 items-center justify-center pb-20 pt-8">
-            <View className="h-24 w-4 rounded-full bg-teal" />
-            <View className="absolute left-[28%] top-10 h-20 w-12 -rotate-12 rounded-full bg-teal-soft" />
-            <View className="absolute right-[28%] top-10 h-20 w-12 rotate-12 rounded-full bg-teal-soft" />
-            <View
-              className="absolute bottom-16 h-4 w-24 rounded-full"
-              style={{
-                backgroundColor:
-                  unlockables.find((item) => item.id === equipped.ribbon)
-                    ?.accent ?? "#4D8F63",
-              }}
-            />
-            <View
-              className="absolute right-[30%] top-20 h-6 w-6 rounded-full border-2 border-white"
-              style={{
-                backgroundColor:
-                  unlockables.find((item) => item.id === equipped.ornament)
-                    ?.accent ?? "#E0B43B",
-              }}
-            />
-            <View
-              className="absolute bottom-0 h-20 w-40 rounded-b-[40px] rounded-t-[24px] border border-teal-soft"
-              style={{
-                backgroundColor:
-                  unlockables.find((item) => item.id === equipped.pot)
-                    ?.accent ?? "#C5794A",
-              }}
-            />
-          </View>
+          <PlantPreview
+            potAccent={equippedItems.pot?.accent ?? palette.teal}
+            ribbonAccent={equippedItems.ribbon?.accent}
+            ornamentAccent={equippedItems.ornament?.accent}
+          />
         </View>
 
         {message ? (
