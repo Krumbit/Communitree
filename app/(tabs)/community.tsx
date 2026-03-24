@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import type { ScrollView as ScrollViewType } from "react-native";
 
 import { PlantPreview } from "@/components/PlantPreview";
 import { palette } from "@/constants/palette";
@@ -33,6 +34,15 @@ export default function CommunityScreen() {
   const [showManage, setShowManage] = useState(false);
   const [taskTitle, setTaskTitle] = useState(community.currentTaskTitle);
   const [manageMessage, setManageMessage] = useState("");
+  const [isBusy, setIsBusy] = useState(false);
+
+  const scrollRef = useRef<ScrollViewType>(null);
+
+  const openManage = () => {
+    setShowManage(true);
+    setManageMessage("");
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+  };
 
   const currentMember = community.members.find((m) => m.id === user.id);
   const hasCompletedToday = currentMember?.completedToday ?? false;
@@ -85,15 +95,22 @@ export default function CommunityScreen() {
               onChangeText={setJoinCode}
             />
             <Pressable
-              className="mt-4 rounded-[20px] bg-slate px-4 py-4"
-              onPress={() => {
-                const result = joinCommunity(joinCode);
+              className={`mt-4 rounded-[20px] px-4 py-4 ${isBusy ? "bg-slate/50" : "bg-slate"}`}
+              disabled={isBusy}
+              onPress={async () => {
+                setIsBusy(true);
+                const result = await joinCommunity(joinCode);
                 setJoinMessage(result.message);
+                setIsBusy(false);
               }}
             >
-              <Text className="text-center text-sm font-semibold text-white">
-                Join community
-              </Text>
+              {isBusy ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text className="text-center text-sm font-semibold text-white">
+                  Join community
+                </Text>
+              )}
             </Pressable>
             {joinMessage ? (
               <Text className="mt-3 text-sm leading-6 text-slate/70">
@@ -114,15 +131,22 @@ export default function CommunityScreen() {
               onChangeText={setCommunityName}
             />
             <Pressable
-              className="mt-4 rounded-[20px] bg-teal px-4 py-4"
-              onPress={() => {
-                const result = createCommunity(communityName);
+              className={`mt-4 rounded-[20px] px-4 py-4 ${isBusy ? "bg-teal/50" : "bg-teal"}`}
+              disabled={isBusy}
+              onPress={async () => {
+                setIsBusy(true);
+                const result = await createCommunity(communityName);
                 setCreateMessage(result.message);
+                setIsBusy(false);
               }}
             >
-              <Text className="text-center text-sm font-semibold text-white">
-                Create community
-              </Text>
+              {isBusy ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text className="text-center text-sm font-semibold text-white">
+                  Create community
+                </Text>
+              )}
             </Pressable>
             {createMessage ? (
               <Text className="mt-3 text-sm leading-6 text-slate/70">
@@ -137,6 +161,7 @@ export default function CommunityScreen() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       className="flex-1 bg-ivory"
       contentContainerStyle={{ paddingBottom: 36 }}
     >
@@ -180,29 +205,64 @@ export default function CommunityScreen() {
         </View>
 
         {/* Current community task */}
-        <View className="mt-6 rounded-[30px] border border-teal/20 bg-ivory-soft px-5 py-5">
-          <View className="flex-row items-start justify-between gap-4">
-            <View className="flex-1">
-              <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
-                Current community task
-              </Text>
-              <Text className="mt-2 text-2xl font-bold leading-tight text-slate">
-                {community.currentTaskTitle}
-              </Text>
-              <Text className="mt-2 text-sm text-slate/70">
-                {community.currentTaskEnds}
-              </Text>
+        {community.currentTaskTitle ? (
+          <View className="mt-6 rounded-[30px] border border-teal/20 bg-ivory-soft px-5 py-5">
+            <View className="flex-row items-start justify-between gap-4">
+              <View className="flex-1">
+                <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
+                  Current community task
+                </Text>
+                <Text className="mt-2 text-2xl font-bold leading-tight text-slate">
+                  {community.currentTaskTitle}
+                </Text>
+                <Text className="mt-2 text-sm text-slate/70">
+                  {community.currentTaskEnds}
+                </Text>
+              </View>
+              <Pressable
+                className={`rounded-full px-4 py-3 ${hasCompletedToday ? "bg-slate" : "bg-teal"}`}
+                onPress={() => toggleCommunityCompletion()}
+              >
+                <Text className="text-sm font-semibold text-white">
+                  {hasCompletedToday ? "Completed" : "Check in"}
+                </Text>
+              </Pressable>
             </View>
-            <Pressable
-              className={`rounded-full px-4 py-3 ${hasCompletedToday ? "bg-slate" : "bg-teal"}`}
-              onPress={toggleCommunityCompletion}
-            >
-              <Text className="text-sm font-semibold text-white">
-                {hasCompletedToday ? "Completed" : "Check in"}
-              </Text>
-            </Pressable>
           </View>
-        </View>
+        ) : (
+          <View className="mt-6 rounded-[30px] border border-dashed border-teal/30 bg-ivory-soft px-5 py-6">
+            <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
+              Current community task
+            </Text>
+            {isOwner ? (
+              <>
+                <Text className="mt-2 text-xl font-semibold text-slate/40">
+                  No task set yet
+                </Text>
+                <Text className="mt-2 text-sm leading-6 text-slate/50">
+                  Set a shared habit for your community to complete today.
+                </Text>
+                <Pressable
+                  className="mt-4 self-start rounded-full bg-slate px-4 py-2"
+                  onPress={openManage}
+                >
+                  <Text className="text-sm font-semibold text-ivory">
+                    Set a task →
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text className="mt-2 text-xl font-semibold text-slate/40">
+                  No task set yet
+                </Text>
+                <Text className="mt-2 text-sm leading-6 text-slate/50">
+                  Waiting for the community owner to set today&apos;s habit.
+                </Text>
+              </>
+            )}
+          </View>
+        )}
 
         {/* Plant card */}
         <View className="mt-6 rounded-[32px] border border-teal/30 bg-slate px-5 py-6">
@@ -261,45 +321,51 @@ export default function CommunityScreen() {
             ornamentAccent={equippedItems.ornament?.accent}
           />
 
-          {/* Daily growth bar */}
-          <View className="rounded-[24px] bg-ivory-soft px-4 py-4">
-            <View className="flex-row items-center justify-between gap-4">
-              <Text className="text-sm font-semibold uppercase tracking-[2px] text-slate/60">
-                Daily growth bar
-              </Text>
-              <Text className="text-sm font-semibold text-slate">
-                {Math.round(completionRate * 100)}% complete
-              </Text>
-            </View>
-
-            <View className="mt-4 h-4 overflow-hidden rounded-full bg-slate/10">
-              <View className="h-full w-1/2 bg-slate/20" />
-              <View className="absolute right-0 top-0 h-full w-1/2 bg-teal/60" />
-              <View
-                className="absolute left-0 top-0 h-full bg-slate/65"
-                style={{ width: `${Math.max(8, completionRate * 100)}%` }}
-              />
-            </View>
-
-            <View className="mt-3 flex-row items-center justify-between gap-3">
-              <Text className="flex-1 text-sm leading-6 text-slate/70">
-                Left: setback range · Right: growth territory · Dark: check-ins
-              </Text>
-              <View className="rounded-full bg-teal-mist px-3 py-2">
+          {/* Daily growth bar — only shown when a task exists */}
+          {community.currentTaskTitle ? (
+            <View className="rounded-[24px] bg-ivory-soft px-4 py-4">
+              <View className="flex-row items-center justify-between gap-4">
+                <Text className="text-sm font-semibold uppercase tracking-[2px] text-slate/60">
+                  Today&apos;s check-ins
+                </Text>
                 <Text className="text-sm font-semibold text-slate">
-                  {growthChange >= 0 ? `+${growthChange}` : growthChange} growth
+                  {completedCount}/{community.members.length} done
                 </Text>
               </View>
+
+              <View className="mt-4 h-4 overflow-hidden rounded-full bg-slate/10">
+                <View className="h-full w-1/2 bg-slate/20" />
+                <View className="absolute right-0 top-0 h-full w-1/2 bg-teal/60" />
+                <View
+                  className="absolute left-0 top-0 h-full bg-slate/65"
+                  style={{ width: `${Math.max(8, completionRate * 100)}%` }}
+                />
+              </View>
+
+              <View className="mt-3 flex-row items-center justify-between gap-3">
+                <Text className="flex-1 text-sm leading-6 text-slate/70">
+                  50% needed to grow the plant. Full completion earns everyone a bonus coin.
+                </Text>
+                <View className="rounded-full bg-teal-mist px-3 py-2">
+                  <Text className="text-sm font-semibold text-slate">
+                    {growthChange >= 0 ? `+${growthChange}` : growthChange} growth
+                  </Text>
+                </View>
+              </View>
             </View>
-          </View>
+          ) : null}
         </View>
 
         {/* Manage community */}
         <Pressable
           className="mt-6 rounded-[24px] bg-slate px-4 py-4"
           onPress={() => {
-            setShowManage((c) => !c);
-            setManageMessage("");
+            if (showManage) {
+              setShowManage(false);
+              setManageMessage("");
+            } else {
+              openManage();
+            }
           }}
         >
           <Text className="text-center text-sm font-semibold text-ivory">
@@ -322,17 +388,23 @@ export default function CommunityScreen() {
                   onChangeText={setTaskTitle}
                 />
                 <Pressable
-                  className="mt-4 rounded-[20px] bg-teal px-4 py-4"
-                  onPress={() => {
-                    createCommunityTask(taskTitle);
-                    setManageMessage(
-                      "Task updated. Daily check-ins reset for all members.",
-                    );
+                  className={`mt-4 rounded-[20px] px-4 py-4 ${isBusy ? "bg-teal/50" : "bg-teal"}`}
+                  disabled={isBusy}
+                  onPress={async () => {
+                    setIsBusy(true);
+                    await createCommunityTask(taskTitle);
+                    setIsBusy(false);
+                    setShowManage(false);
+                    setManageMessage("");
                   }}
                 >
-                  <Text className="text-center text-sm font-semibold text-white">
-                    Publish task
-                  </Text>
+                  {isBusy ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text className="text-center text-sm font-semibold text-white">
+                      Publish task
+                    </Text>
+                  )}
                 </Pressable>
 
                 <View className="my-5 h-px bg-slate/10" />
@@ -344,10 +416,13 @@ export default function CommunityScreen() {
                   Ownership will transfer to another member when you leave.
                 </Text>
                 <Pressable
-                  className="mt-4 rounded-[20px] bg-slate/10 px-4 py-4"
-                  onPress={() => {
-                    leaveCommunity();
+                  className={`mt-4 rounded-[20px] px-4 py-4 ${isBusy ? "bg-slate/5" : "bg-slate/10"}`}
+                  disabled={isBusy}
+                  onPress={async () => {
+                    setIsBusy(true);
+                    await leaveCommunity();
                     setShowManage(false);
+                    setIsBusy(false);
                   }}
                 >
                   <Text className="text-center text-sm font-semibold text-slate">
@@ -364,10 +439,13 @@ export default function CommunityScreen() {
                   Your check-in history will be removed from this community.
                 </Text>
                 <Pressable
-                  className="mt-4 rounded-[20px] bg-slate/10 px-4 py-4"
-                  onPress={() => {
-                    leaveCommunity();
+                  className={`mt-4 rounded-[20px] px-4 py-4 ${isBusy ? "bg-slate/5" : "bg-slate/10"}`}
+                  disabled={isBusy}
+                  onPress={async () => {
+                    setIsBusy(true);
+                    await leaveCommunity();
                     setShowManage(false);
+                    setIsBusy(false);
                   }}
                 >
                   <Text className="text-center text-sm font-semibold text-slate">

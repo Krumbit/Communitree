@@ -8,8 +8,8 @@ import { useCommunitree } from "@/context/communitree-context";
 export default function ProfileScreen() {
   const { community, inCommunity, isOwner, signOut, user } = useCommunitree();
 
-  const handleSignOut = () => {
-    signOut();
+  const handleSignOut = async () => {
+    await signOut();
     router.replace("/sign-in");
   };
 

@@ -1,10 +1,30 @@
+import * as SecureStore from "expo-secure-store";
 import {
   createContext,
   type PropsWithChildren,
+  useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+
+import { API_BASE } from "@/constants/api";
+import {
+  mapCommunity,
+  mapEquipped,
+  mapPersonalTask,
+  mapUnlockables,
+  mapUser,
+  type MappedCommunity,
+  type MappedUser,
+  type RawApiResponse,
+} from "@/utils/mappers";
+
+// ---------------------------------------------------------------------------
+// Public types (used by screens)
+// ---------------------------------------------------------------------------
 
 export type PersonalTask = {
   id: string;
@@ -41,36 +61,10 @@ export type Unlockable = {
   purchased: boolean;
 };
 
-type User = {
-  id: string;
-  name: string;
-  firstName: string;
-  email: string;
-  coins: number;
-  streakDays: number;
-  signedIn: boolean;
-};
+type User = MappedUser;
+type Community = MappedCommunity;
 
-type Community = {
-  name: string;
-  code: string;
-  currentTaskTitle: string;
-  currentTaskEnds: string;
-  dailyThreshold: number;
-  // mirrors community.tier in the backend — index into PLANT_TIERS
-  plantLevel: number;
-  // mirrors community.tier_progress (0–100 in mock, 0.0–1.0 in backend)
-  levelProgress: number;
-  members: Member[];
-  weeklyHistory: WeeklyStat[];
-};
-
-type SignInPayload = {
-  name?: string;
-  email: string;
-};
-
-type ActionResult = { ok: boolean; message: string };
+export type ActionResult = { ok: boolean; message: string };
 
 type CommunitreeContextValue = {
   user: User;
@@ -82,420 +76,286 @@ type CommunitreeContextValue = {
   completedCount: number;
   inCommunity: boolean;
   isOwner: boolean;
-  togglePersonalTask: (taskId: string) => void;
-  addPersonalTask: (title: string, deadline: string) => void;
-  toggleCommunityCompletion: () => void;
-  // mirrors POST /create-community-task { user_id, task_description }
-  createCommunityTask: (title: string) => void;
-  // mirrors POST /join-community { user_id, community_id } — code lookup TBD in real backend
-  joinCommunity: (code: string) => ActionResult;
-  // mirrors POST /leave-community { user_id }
-  leaveCommunity: () => void;
-  // mirrors POST /create-community { user_id, community_name }
-  createCommunity: (name: string) => ActionResult;
-  // mirrors POST /buy-community-unlockable { user_id, unlockable_id }
-  buyUnlockable: (unlockableId: string) => ActionResult;
-  // mirrors POST /apply-community-unlockable { user_id, unlockable_id }
-  equipUnlockable: (unlockableId: string) => void;
-  signInMock: (payload: SignInPayload) => void;
-  signOut: () => void;
+  isLoading: boolean;
+  togglePersonalTask: (taskId: string) => Promise<void>;
+  addPersonalTask: (title: string, deadline: string) => Promise<void>;
+  toggleCommunityCompletion: () => Promise<void>;
+  createCommunityTask: (title: string) => Promise<void>;
+  joinCommunity: (code: string) => Promise<ActionResult>;
+  leaveCommunity: () => Promise<void>;
+  createCommunity: (name: string) => Promise<ActionResult>;
+  buyUnlockable: (unlockableId: string) => Promise<ActionResult>;
+  equipUnlockable: (unlockableId: string) => Promise<void>;
+  signIn: (email: string, password: string, username?: string) => Promise<ActionResult>;
+  signOut: () => Promise<void>;
 };
 
-const initialUser: User = {
-  id: "user-yan",
-  name: "Yan Slobodianik",
-  firstName: "Yan",
-  email: "yan@example.com",
-  coins: 110,
-  streakDays: 5,
+// ---------------------------------------------------------------------------
+// Blank defaults (used before data loads)
+// ---------------------------------------------------------------------------
+
+const blankUser: User = {
+  id: "",
+  name: "",
+  firstName: "",
+  email: "",
+  coins: 0,
+  streakDays: 0,
   signedIn: false,
 };
 
-const initialPersonalTasks: PersonalTask[] = [
-  {
-    id: "task-1",
-    title: "Drink water before morning lecture",
-    deadline: "2026-03-06T09:00:00.000Z",
-    completed: false,
-  },
-  {
-    id: "task-2",
-    title: "Plan tomorrow's meals",
-    deadline: "2026-03-06T20:00:00.000Z",
-    completed: false,
-  },
-  {
-    id: "task-3",
-    title: "Stretch for 10 minutes",
-    deadline: "2026-03-07T08:30:00.000Z",
-    completed: true,
-  },
-  {
-    id: "task-4",
-    title: "Review notes after seminar",
-    deadline: "2026-03-07T18:00:00.000Z",
-    completed: false,
-  },
-  {
-    id: "task-5",
-    title: "Set phone downtime before bed",
-    deadline: "2026-03-08T21:30:00.000Z",
-    completed: false,
-  },
-];
-
-const initialCommunity: Community = {
-  name: "Rosebank House",
-  code: "GROW-37",
-  currentTaskTitle: "30-minute focused study block",
+const blankCommunity: Community = {
+  name: "",
+  code: "",
+  currentTaskTitle: "",
   currentTaskEnds: "Resets each night at 11:59 PM",
   dailyThreshold: 0.5,
-  plantLevel: 6,
-  levelProgress: 72,
-  members: [
-    {
-      id: "user-yan",
-      name: "Yan",
-      initials: "YS",
-      completedToday: false,
-      role: "owner",
-    },
-    { id: "member-jiahe", name: "Jiahe", initials: "JA", completedToday: true },
-    { id: "member-ben", name: "Ben", initials: "BD", completedToday: true },
-    {
-      id: "member-rayhan",
-      name: "Rayhan",
-      initials: "RM",
-      completedToday: false,
-    },
-  ],
-  weeklyHistory: [
-    {
-      week: "Wk 1",
-      completionRate: 0.54,
-      perfectDays: 1,
-      coinsEarned: 8,
-      plantDelta: 1,
-    },
-    {
-      week: "Wk 2",
-      completionRate: 0.68,
-      perfectDays: 2,
-      coinsEarned: 11,
-      plantDelta: 2,
-    },
-    {
-      week: "Wk 3",
-      completionRate: 0.81,
-      perfectDays: 3,
-      coinsEarned: 15,
-      plantDelta: 3,
-    },
-    {
-      week: "Wk 4",
-      completionRate: 0.76,
-      perfectDays: 2,
-      coinsEarned: 13,
-      plantDelta: 2,
-    },
-  ],
+  plantLevel: 0,
+  levelProgress: 0,
+  members: [],
+  weeklyHistory: [],
 };
 
-const initialUnlockables: Unlockable[] = [
-  {
-    id: "pot-clay",
-    name: "Clay Pot",
-    category: "pot",
-    price: 4,
-    description: "Warm terracotta with a rounded rim.",
-    accent: "#C5794A",
-    purchased: true,
-  },
-  {
-    id: "pot-speckled",
-    name: "Speckled Planter",
-    category: "pot",
-    price: 7,
-    description: "Soft ceramic finish with a pebble glaze.",
-    accent: "#E8D7BC",
-    purchased: false,
-  },
-  {
-    id: "ribbon-moss",
-    name: "Moss Ribbon",
-    category: "ribbon",
-    price: 3,
-    description: "A leafy band for milestone weeks.",
-    accent: "#4D8F63",
-    purchased: true,
-  },
-  {
-    id: "ribbon-sunrise",
-    name: "Sunrise Wrap",
-    category: "ribbon",
-    price: 5,
-    description: "A bright accent for perfect streaks.",
-    accent: "#F2A65A",
-    purchased: false,
-  },
-  {
-    id: "ornament-ladybird",
-    name: "Ladybird Charm",
-    category: "ornament",
-    price: 6,
-    description: "A tiny lucky visitor for the leaves.",
-    accent: "#D44B3A",
-    purchased: false,
-  },
-  {
-    id: "ornament-star",
-    name: "Gold Star Tag",
-    category: "ornament",
-    price: 4,
-    description: "Marks an all-community completion day.",
-    accent: "#E0B43B",
-    purchased: true,
-  },
-];
+// ---------------------------------------------------------------------------
+// HTTP helpers
+// ---------------------------------------------------------------------------
 
-const initialEquipped: Record<UnlockableCategory, string> = {
-  pot: "pot-clay",
-  ribbon: "ribbon-moss",
-  ornament: "ornament-star",
-};
+const networkError = (path: string): RawApiResponse =>
+  ({ success: false, message: `Could not reach server (${path}). Check your network or API_BASE.` } as RawApiResponse);
+
+async function apiGet(path: string): Promise<RawApiResponse> {
+  try {
+    const res = await fetch(`${API_BASE}${path}`);
+    return await res.json();
+  } catch {
+    return networkError(path);
+  }
+}
+
+async function apiPost(path: string, body: Record<string, unknown>): Promise<RawApiResponse> {
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return await res.json();
+  } catch {
+    return networkError(path);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Context
+// ---------------------------------------------------------------------------
 
 const CommunitreeContext = createContext<CommunitreeContextValue | null>(null);
 
 export function CommunitreeProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState(initialUser);
-  const [community, setCommunity] = useState(initialCommunity);
-  const [personalTasks, setPersonalTasks] = useState(initialPersonalTasks);
-  const [unlockables, setUnlockables] = useState(initialUnlockables);
-  const [equipped, setEquipped] = useState(initialEquipped);
-  const [inCommunity, setInCommunity] = useState(true);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [currentTaskId, setCurrentTaskId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const completedCount = community.members.filter(
-    (member) => member.completedToday,
-  ).length;
-  const completionRate =
-    community.members.length === 0
-      ? 0
-      : completedCount / community.members.length;
-  const isOwner = community.members.some(
-    (member) => member.id === user.id && member.role === "owner",
+  const [user, setUser] = useState<User>(blankUser);
+  const [community, setCommunity] = useState<Community>(blankCommunity);
+  const [personalTasks, setPersonalTasks] = useState<PersonalTask[]>([]);
+  const [unlockables, setUnlockables] = useState<Unlockable[]>([]);
+  const [equipped, setEquipped] = useState<Record<UnlockableCategory, string>>({
+    pot: "",
+    ribbon: "",
+    ornament: "",
+  });
+  const [inCommunity, setInCommunity] = useState(false);
+
+  // Keep a stable ref to userId for use inside callbacks without stale closures
+  const userIdRef = useRef<number | null>(null);
+  userIdRef.current = userId;
+
+  // ---------------------------------------------------------------------------
+  // State hydration from API response
+  // ---------------------------------------------------------------------------
+
+  const hydrateFromResponse = useCallback((data: RawApiResponse) => {
+    const mappedUser = mapUser(data.user);
+    setUser(mappedUser);
+    setPersonalTasks(data.user_tasks.map(mapPersonalTask));
+
+    if (data.community) {
+      setCommunity(mapCommunity(data.community, data.current_task));
+      setUnlockables(mapUnlockables(data.unlocked ?? [], data.locked ?? []));
+      setEquipped(mapEquipped(data.unlocked ?? []));
+      setCurrentTaskId(data.current_task?.id ?? null);
+      setInCommunity(true);
+    } else {
+      setCommunity(blankCommunity);
+      setUnlockables([]);
+      setEquipped({ pot: "", ribbon: "", ornament: "" });
+      setCurrentTaskId(null);
+      setInCommunity(false);
+    }
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Refresh: fetch latest data for the current user
+  // ---------------------------------------------------------------------------
+
+  const refreshUserData = useCallback(
+    async (uid?: number) => {
+      const id = uid ?? userIdRef.current;
+      if (!id) return;
+      const data = await apiGet(`/data/${id}`);
+      if (data.success) hydrateFromResponse(data);
+    },
+    [hydrateFromResponse]
   );
 
+  // ---------------------------------------------------------------------------
+  // On mount: restore session from SecureStore
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    SecureStore.getItemAsync("user_id").then(async (stored) => {
+      if (stored) {
+        const id = Number(stored);
+        setUserId(id);
+        userIdRef.current = id;
+        await refreshUserData(id);
+      }
+      setIsLoading(false);
+    });
+  }, [refreshUserData]);
+
+  // ---------------------------------------------------------------------------
+  // Derived values
+  // ---------------------------------------------------------------------------
+
+  const completedCount = community.members.filter((m) => m.completedToday).length;
+  const completionRate =
+    community.members.length === 0 ? 0 : completedCount / community.members.length;
+  const isOwner = community.members.some(
+    (m) => m.id === user.id && m.role === "owner"
+  );
+
+  // ---------------------------------------------------------------------------
+  // Actions
+  // ---------------------------------------------------------------------------
+
   const value = useMemo<CommunitreeContextValue>(() => {
-    const togglePersonalTask = (taskId: string) => {
-      setPersonalTasks((current) =>
-        current.map((task) =>
-          task.id === taskId ? { ...task, completed: !task.completed } : task,
-        ),
-      );
+    const uid = () => userIdRef.current!;
+
+    const signIn = async (
+      email: string,
+      password: string,
+      username?: string
+    ): Promise<ActionResult> => {
+      const endpoint = username ? "/signup" : "/login";
+      const body = username
+        ? { username, email, password }
+        : { email, password };
+
+      const data = await apiPost(endpoint, body);
+      if (!data.success) return { ok: false, message: data.message ?? "Authentication failed." };
+
+      const id = data.user.id;
+      await SecureStore.setItemAsync("user_id", String(id));
+      setUserId(id);
+      userIdRef.current = id;
+      hydrateFromResponse(data);
+      return { ok: true, message: "" };
     };
 
-    const addPersonalTask = (title: string, deadline: string) => {
-      const trimmedTitle = title.trim();
-      const trimmedDeadline = deadline.trim();
-
-      if (!trimmedTitle || !trimmedDeadline) {
-        return;
-      }
-
-      setPersonalTasks((current) => [
-        {
-          id: `task-${Date.now()}`,
-          title: trimmedTitle,
-          deadline: trimmedDeadline,
-          completed: false,
-        },
-        ...current,
-      ]);
-    };
-
-    const toggleCommunityCompletion = () => {
-      setCommunity((current) => {
-        const previousCompletedCount = current.members.filter(
-          (member) => member.completedToday,
-        ).length;
-        const previousEveryoneDone =
-          previousCompletedCount === current.members.length;
-
-        const nextMembers = current.members.map((member) =>
-          member.id === user.id
-            ? { ...member, completedToday: !member.completedToday }
-            : member,
-        );
-
-        const nextCompletedCount = nextMembers.filter(
-          (member) => member.completedToday,
-        ).length;
-        const nextEveryoneDone = nextCompletedCount === nextMembers.length;
-        const currentUserWasComplete = current.members.find(
-          (member) => member.id === user.id,
-        )?.completedToday;
-
-        setUser((currentUser) => {
-          let nextCoins = currentUser.coins;
-
-          if (currentUserWasComplete) {
-            nextCoins -= 1;
-          } else {
-            nextCoins += 1;
-          }
-
-          if (!previousEveryoneDone && nextEveryoneDone) {
-            nextCoins += 2;
-          }
-
-          if (previousEveryoneDone && !nextEveryoneDone) {
-            nextCoins -= 2;
-          }
-
-          return { ...currentUser, coins: Math.max(0, nextCoins) };
-        });
-
-        return {
-          ...current,
-          members: nextMembers,
-        };
-      });
-    };
-
-    const createCommunityTask = (title: string) => {
-      const trimmedTitle = title.trim();
-
-      if (!trimmedTitle) {
-        return;
-      }
-
-      setCommunity((current) => ({
-        ...current,
-        currentTaskTitle: trimmedTitle,
-        members: current.members.map((member) => ({
-          ...member,
-          completedToday: false,
-        })),
-      }));
-    };
-
-    const joinCommunity = (code: string) => {
-      if (code.trim().toUpperCase() !== community.code) {
-        return {
-          ok: false,
-          message: "That code does not match this prototype community.",
-        };
-      }
-
-      setInCommunity(true);
-      return {
-        ok: true,
-        message: `Joined ${community.name}.`,
-      };
-    };
-
-    const leaveCommunity = () => {
+    const signOut = async () => {
+      await SecureStore.deleteItemAsync("user_id");
+      setUserId(null);
+      userIdRef.current = null;
+      setUser(blankUser);
+      setCommunity(blankCommunity);
+      setPersonalTasks([]);
+      setUnlockables([]);
+      setEquipped({ pot: "", ribbon: "", ornament: "" });
       setInCommunity(false);
+      setCurrentTaskId(null);
     };
 
-    const createCommunity = (name: string): ActionResult => {
+    const togglePersonalTask = async (taskId: string) => {
+      const task = personalTasks.find((t) => t.id === taskId);
+      if (!task) return;
+      const endpoint = task.completed ? "/uncomplete-user-task" : "/complete-user-task";
+      await apiPost(endpoint, { user_id: uid(), task_id: Number(taskId) });
+      await refreshUserData();
+    };
+
+    const addPersonalTask = async (title: string, deadline: string) => {
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) return;
+      await apiPost("/create-user-task", {
+        user_id: uid(),
+        task_description: trimmedTitle,
+        deadline: deadline || null,
+      });
+      await refreshUserData();
+    };
+
+    const toggleCommunityCompletion = async () => {
+      if (!currentTaskId) return;
+      const currentMember = community.members.find((m) => m.id === user.id);
+      const hasCompleted = currentMember?.completedToday ?? false;
+      const endpoint = hasCompleted ? "/undo-community-checkin" : "/complete-community-task";
+      await apiPost(endpoint, { user_id: uid(), community_task_id: currentTaskId });
+      await refreshUserData();
+    };
+
+    const createCommunityTask = async (title: string) => {
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) return;
+      await apiPost("/create-community-task", {
+        user_id: uid(),
+        task_description: trimmedTitle,
+      });
+      await refreshUserData();
+    };
+
+    const joinCommunity = async (code: string): Promise<ActionResult> => {
+      const data = await apiPost("/join-community", { user_id: uid(), code: code.trim() });
+      if (!data.success) return { ok: false, message: data.message ?? "Could not join community." };
+      await refreshUserData();
+      return { ok: true, message: "Joined community." };
+    };
+
+    const leaveCommunity = async () => {
+      await apiPost("/leave-community", { user_id: uid() });
+      await refreshUserData();
+    };
+
+    const createCommunity = async (name: string): Promise<ActionResult> => {
       const trimmedName = name.trim();
-      if (!trimmedName) {
-        return { ok: false, message: "Community name cannot be empty." };
-      }
-
-      const initials = user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase();
-
-      setCommunity((current) => ({
-        ...current,
-        name: trimmedName,
-        code: `GROW-${Math.floor(Math.random() * 90) + 10}`,
-        members: [
-          {
-            id: user.id,
-            name: user.firstName,
-            initials,
-            completedToday: false,
-            role: "owner" as const,
-          },
-        ],
-      }));
-      setInCommunity(true);
+      if (!trimmedName) return { ok: false, message: "Community name cannot be empty." };
+      const data = await apiPost("/create-community", {
+        user_id: uid(),
+        community_name: trimmedName,
+      });
+      if (!data.success) return { ok: false, message: data.message ?? "Could not create community." };
+      await refreshUserData();
       return { ok: true, message: `"${trimmedName}" created. Share your code with friends.` };
     };
 
-    const buyUnlockable = (unlockableId: string) => {
-      const target = unlockables.find(
-        (unlockable) => unlockable.id === unlockableId,
-      );
-
-      if (!target) {
-        return { ok: false, message: "That cosmetic could not be found." };
-      }
-
-      if (target.purchased) {
-        return {
-          ok: true,
-          message: `${target.name} is already in your collection.`,
-        };
-      }
-
-      if (user.coins < target.price) {
-        return {
-          ok: false,
-          message: "Not enough coins for that cosmetic yet.",
-        };
-      }
-
-      setUser((current) => ({
-        ...current,
-        coins: current.coins - target.price,
-      }));
-      setUnlockables((current) =>
-        current.map((unlockable) =>
-          unlockable.id === unlockableId
-            ? { ...unlockable, purchased: true }
-            : unlockable,
-        ),
-      );
-
-      return {
-        ok: true,
-        message: `${target.name} unlocked for your community plant.`,
-      };
+    const buyUnlockable = async (unlockableId: string): Promise<ActionResult> => {
+      const data = await apiPost("/buy-community-unlockable", {
+        user_id: uid(),
+        unlockable_id: Number(unlockableId),
+      });
+      if (!data.success) return { ok: false, message: data.message ?? "Purchase failed." };
+      await refreshUserData();
+      const target = unlockables.find((u) => u.id === unlockableId);
+      return { ok: true, message: `${target?.name ?? "Item"} unlocked for your community plant.` };
     };
 
-    const equipUnlockable = (unlockableId: string) => {
-      const target = unlockables.find(
-        (unlockable) => unlockable.id === unlockableId,
-      );
-
-      if (!target || !target.purchased) {
-        return;
-      }
-
-      setEquipped((current) => ({
-        ...current,
-        [target.category]: unlockableId,
-      }));
-    };
-
-    const signInMock = (payload: SignInPayload) => {
-      setUser((current) => ({
-        ...current,
-        name: payload.name?.trim() || current.name,
-        firstName: payload.name?.trim()?.split(" ")[0] || current.firstName,
-        email: payload.email.trim() || current.email,
-        signedIn: true,
-      }));
-    };
-
-    const signOut = () => {
-      setUser((current) => ({ ...current, signedIn: false }));
+    const equipUnlockable = async (unlockableId: string) => {
+      await apiPost("/apply-community-unlockable", {
+        user_id: uid(),
+        unlockable_id: Number(unlockableId),
+      });
+      await refreshUserData();
     };
 
     return {
@@ -508,6 +368,7 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
       completedCount,
       inCommunity,
       isOwner,
+      isLoading,
       togglePersonalTask,
       addPersonalTask,
       toggleCommunityCompletion,
@@ -517,17 +378,21 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
       createCommunity,
       buyUnlockable,
       equipUnlockable,
-      signInMock,
+      signIn,
       signOut,
     };
   }, [
     community,
-    completionRate,
     completedCount,
+    completionRate,
+    currentTaskId,
     equipped,
+    hydrateFromResponse,
     inCommunity,
+    isLoading,
     isOwner,
     personalTasks,
+    refreshUserData,
     unlockables,
     user,
   ]);

@@ -1,16 +1,47 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { palette } from "@/constants/palette";
 import { useCommunitree } from "@/context/communitree-context";
 
 export default function SignInScreen() {
-  const { signInMock, user } = useCommunitree();
+  const { signIn } = useCommunitree();
+
   const [isCreateMode, setIsCreateMode] = useState(false);
-  const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    const result = await signIn(
+      email.trim(),
+      password,
+      isCreateMode ? name.trim() : undefined
+    );
+
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setErrorMessage(result.message);
+      return;
+    }
+
+    setPassword("");
+    router.replace("/(tabs)");
+  };
 
   return (
     <ScrollView
@@ -41,7 +72,10 @@ export default function SignInScreen() {
           <View className="flex-row rounded-full bg-slate/10 p-1">
             <Pressable
               className={`flex-1 rounded-full px-4 py-3 ${!isCreateMode ? "bg-slate" : "bg-transparent"}`}
-              onPress={() => setIsCreateMode(false)}
+              onPress={() => {
+                setIsCreateMode(false);
+                setErrorMessage("");
+              }}
             >
               <Text
                 className={`text-center text-sm font-semibold ${!isCreateMode ? "text-ivory" : "text-slate/65"}`}
@@ -51,7 +85,10 @@ export default function SignInScreen() {
             </Pressable>
             <Pressable
               className={`flex-1 rounded-full px-4 py-3 ${isCreateMode ? "bg-slate" : "bg-transparent"}`}
-              onPress={() => setIsCreateMode(true)}
+              onPress={() => {
+                setIsCreateMode(true);
+                setErrorMessage("");
+              }}
             >
               <Text
                 className={`text-center text-sm font-semibold ${isCreateMode ? "text-ivory" : "text-slate/65"}`}
@@ -64,7 +101,7 @@ export default function SignInScreen() {
           {isCreateMode ? (
             <TextInput
               className="mt-5 rounded-[20px] border border-teal/20 bg-ivory px-4 py-4 text-base text-slate"
-              placeholder="Full name"
+              placeholder="Username"
               placeholderTextColor={palette.slateMuted}
               value={name}
               onChangeText={setName}
@@ -89,20 +126,24 @@ export default function SignInScreen() {
             onChangeText={setPassword}
           />
 
-          <Pressable
-            className="mt-5 rounded-[22px] bg-teal px-4 py-4"
-            onPress={() => {
-              signInMock({
-                name: isCreateMode ? name : undefined,
-                email,
-              });
-              setPassword("");
-              router.replace("/(tabs)");
-            }}
-          >
-            <Text className="text-center text-sm font-semibold text-white">
-              {isCreateMode ? "Create preview account" : "Sign in to preview"}
+          {errorMessage ? (
+            <Text className="mt-3 text-sm font-medium text-red-500">
+              {errorMessage}
             </Text>
+          ) : null}
+
+          <Pressable
+            className={`mt-5 rounded-[22px] px-4 py-4 ${isSubmitting ? "bg-teal/50" : "bg-teal"}`}
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text className="text-center text-sm font-semibold text-white">
+                {isCreateMode ? "Create account" : "Sign in"}
+              </Text>
+            )}
           </Pressable>
         </View>
       </View>

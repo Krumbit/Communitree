@@ -25,12 +25,12 @@ ph = PasswordHasher()
 # ---------------------------------------------------------------------------
 
 def gen_user_tasks_query(user_id: int):
+    """Return all personal tasks created in the last 7 days (completed or not)."""
     return (
         select(UserTask)
         .where(
             UserTask.user_id == user_id,
             UserTask.created_date > datetime.now() - timedelta(days=7),
-            UserTask.completed == False
         )
     )
 
@@ -56,9 +56,9 @@ def gen_community_tasks_query(user_id: int):
 
 
 def gen_unlocked_query(community_id: int):
+    """Returns CommunityUnlockable rows (includes applied status and embedded unlockable)."""
     return (
-        select(Unlockable)
-        .join(CommunityUnlockable)
+        select(CommunityUnlockable)
         .where(CommunityUnlockable.community_id == community_id)
     )
 
@@ -219,6 +219,7 @@ def query_user_data(user_id: int):
         'user_tasks': [t.to_dict() for t in user_tasks],
         'community': community_data,
         'community_tasks': [t.to_dict() for t in community_tasks],
+        'current_task': current_task.to_dict() if current_task else None,
         'unlocked': [u.to_dict() for u in unlocked],
         'locked': [l.to_dict() for l in locked]
     })
@@ -240,7 +241,10 @@ def login():
     password = data.get('password')
 
     user_query = select(User).where(User.email == email)
-    user = db.first_or_404(user_query, description=f"User with email {email} not found.")
+    user = db.session.execute(user_query).scalars().first()
+
+    if user is None:
+        return jsonify({"success": False, "message": "No account found with that email."})
 
     try:
         ph.verify(user.passhash, password)

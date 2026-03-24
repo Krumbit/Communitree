@@ -126,11 +126,9 @@ export default function ShopScreen() {
                       {item.purchased ? (
                         <Pressable
                           className={`flex-1 rounded-[20px] px-4 py-4 ${isEquipped ? "bg-slate" : "bg-teal"}`}
-                          onPress={() => {
-                            equipUnlockable(item.id);
-                            setMessage(
-                              `${item.name} is now equipped on the community plant.`,
-                            );
+                          onPress={async () => {
+                            await equipUnlockable(item.id);
+                            setMessage(`${item.name} is now equipped on the community plant.`);
                           }}
                         >
                           <Text className="text-center text-sm font-semibold text-white">
@@ -140,13 +138,9 @@ export default function ShopScreen() {
                       ) : (
                         <Pressable
                           className="flex-1 rounded-[20px] bg-slate px-4 py-4"
-                          onPress={() => {
-                            const result = buyUnlockable(item.id);
+                          onPress={async () => {
+                            const result = await buyUnlockable(item.id);
                             setMessage(result.message);
-
-                            if (result.ok) {
-                              equipUnlockable(item.id);
-                            }
                           }}
                         >
                           <Text className="text-center text-sm font-semibold text-white">

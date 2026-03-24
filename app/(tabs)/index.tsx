@@ -4,7 +4,7 @@ import DateTimePicker, {
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, router } from "expo-router";
 import { useMemo, useState } from "react";
-import { Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import { palette } from "@/constants/palette";
 import { useCommunitree } from "@/context/communitree-context";
@@ -30,6 +30,8 @@ export default function HomeScreen() {
     community,
     completedCount,
     completionRate,
+    inCommunity,
+    isLoading,
     personalTasks,
     toggleCommunityCompletion,
     togglePersonalTask,
@@ -64,6 +66,14 @@ export default function HomeScreen() {
     (member) => member.id === user.id,
   );
   const hasCompletedToday = currentMember?.completedToday ?? false;
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-ivory">
+        <ActivityIndicator size="large" color={palette.teal} />
+      </View>
+    );
+  }
 
   if (!user.signedIn) {
     return <Redirect href="/sign-in" />;
@@ -111,52 +121,85 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View className="mt-6 rounded-[30px] border border-teal/20 bg-ivory-soft px-5 py-5">
-          <View className="flex-row items-start justify-between gap-3">
-            <View className="flex-1">
-              <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
-                Today&apos;s community habit
-              </Text>
-              <Text className="mt-2 text-2xl font-bold leading-tight text-slate">
-                {community.currentTaskTitle}
-              </Text>
-              <Text className="mt-2 text-sm text-slate/70">
-                {community.currentTaskEnds}
-              </Text>
-            </View>
-            <View className="rounded-full bg-teal-mist px-4 py-2">
-              <Text className="text-sm font-semibold text-slate">
-                {completedCount}/{community.members.length}
-              </Text>
-            </View>
-          </View>
-
-          <View className="mt-5 h-4 overflow-hidden rounded-full bg-slate/10">
-            <View className="h-full w-1/2 bg-slate/20" />
-            <View className="absolute right-0 top-0 h-full w-1/2 bg-teal/60" />
-            <View
-              className="absolute left-0 top-0 h-full bg-slate/65"
-              style={{ width: `${Math.max(8, completionRate * 100)}%` }}
-            />
-          </View>
-
-          <View className="mt-4 flex-row items-center justify-between gap-3">
-            <View className="flex-1">
-              <Text className="text-sm leading-6 text-slate/70">
-                Crossing the 50% mark moves the plant forward tomorrow.
-                Full-community days still add a coin bonus for everyone.
-              </Text>
-            </View>
-            <Pressable
-              className={`rounded-full px-4 py-3 ${hasCompletedToday ? "bg-slate" : "bg-teal"}`}
-              onPress={toggleCommunityCompletion}
-            >
+        {!inCommunity ? (
+          <Pressable
+            className="mt-6 rounded-[30px] border border-teal/20 bg-ivory-soft px-5 py-5"
+            onPress={() => router.push("/(tabs)/community")}
+          >
+            <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
+              Community habit
+            </Text>
+            <Text className="mt-2 text-2xl font-bold leading-tight text-slate">
+              No community yet
+            </Text>
+            <Text className="mt-2 text-sm leading-6 text-slate/70">
+              Join or create a community to share a daily habit with friends.
+            </Text>
+            <View className="mt-4 self-start rounded-full bg-teal px-4 py-2">
               <Text className="text-sm font-semibold text-white">
-                {hasCompletedToday ? "Undo check-in" : "Mark done"}
+                Get started →
               </Text>
-            </Pressable>
+            </View>
+          </Pressable>
+        ) : !community.currentTaskTitle ? (
+          <View className="mt-6 rounded-[30px] border border-teal/20 bg-ivory-soft px-5 py-5">
+            <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
+              Today&apos;s community habit
+            </Text>
+            <Text className="mt-2 text-xl font-semibold text-slate/40">
+              No task set yet
+            </Text>
+            <Text className="mt-2 text-sm text-slate/50">
+              Waiting for the community owner to set today&apos;s habit.
+            </Text>
           </View>
-        </View>
+        ) : (
+          <View className="mt-6 rounded-[30px] border border-teal/20 bg-ivory-soft px-5 py-5">
+            <View className="flex-row items-start justify-between gap-3">
+              <View className="flex-1">
+                <Text className="text-xs font-semibold uppercase tracking-[2px] text-slate/60">
+                  Today&apos;s community habit
+                </Text>
+                <Text className="mt-2 text-2xl font-bold leading-tight text-slate">
+                  {community.currentTaskTitle}
+                </Text>
+                <Text className="mt-2 text-sm text-slate/70">
+                  {community.currentTaskEnds}
+                </Text>
+              </View>
+              <View className="rounded-full bg-teal-mist px-4 py-2">
+                <Text className="text-sm font-semibold text-slate">
+                  {completedCount}/{community.members.length}
+                </Text>
+              </View>
+            </View>
+
+            <View className="mt-5 h-4 overflow-hidden rounded-full bg-slate/10">
+              <View className="h-full w-1/2 bg-slate/20" />
+              <View className="absolute right-0 top-0 h-full w-1/2 bg-teal/60" />
+              <View
+                className="absolute left-0 top-0 h-full bg-slate/65"
+                style={{ width: `${Math.max(8, completionRate * 100)}%` }}
+              />
+            </View>
+
+            <View className="mt-4 flex-row items-center justify-between gap-3">
+              <View className="flex-1">
+                <Text className="text-sm leading-6 text-slate/70">
+                  Over 50% check-ins grows the plant. Everyone completing adds a coin bonus.
+                </Text>
+              </View>
+              <Pressable
+                className={`rounded-full px-4 py-3 ${hasCompletedToday ? "bg-slate" : "bg-teal"}`}
+                onPress={toggleCommunityCompletion}
+              >
+                <Text className="text-sm font-semibold text-white">
+                  {hasCompletedToday ? "Undo" : "Mark done"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         <View className="mt-8 flex-row items-center justify-between">
           <View>
@@ -258,6 +301,30 @@ export default function HomeScreen() {
                 Add personal task
               </Text>
             </Pressable>
+          </View>
+        ) : null}
+
+        {activeTasks.length === 0 && completedTasks.length === 0 ? (
+          <View className="mt-4 rounded-[28px] border border-teal/10 bg-ivory-soft px-5 py-8">
+            <View className="items-center gap-3">
+              <View className="rounded-full bg-teal-mist px-5 py-4">
+                <Ionicons name="leaf-outline" size={28} color={palette.teal} />
+              </View>
+              <Text className="text-lg font-semibold text-slate">
+                No tasks yet
+              </Text>
+              <Text className="text-center text-sm leading-6 text-slate/55">
+                Add a personal habit to start building your streak.
+              </Text>
+              <Pressable
+                className="mt-1 rounded-full bg-teal px-5 py-3"
+                onPress={() => setShowComposer(true)}
+              >
+                <Text className="text-sm font-semibold text-white">
+                  Add your first task
+                </Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
 

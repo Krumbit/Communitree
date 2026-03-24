@@ -14,10 +14,12 @@ export default function CommunityStatsScreen() {
   const completedPersonalTasks = personalTasks.filter((t) => t.completed).length;
   const reversedHistory = [...community.weeklyHistory].reverse();
   const averageCompletion =
-    community.weeklyHistory.reduce(
-      (sum, week) => sum + week.completionRate,
-      0,
-    ) / community.weeklyHistory.length;
+    community.weeklyHistory.length === 0
+      ? 0
+      : community.weeklyHistory.reduce(
+          (sum, week) => sum + week.completionRate,
+          0,
+        ) / community.weeklyHistory.length;
   const perfectDays = community.weeklyHistory.reduce(
     (sum, week) => sum + week.perfectDays,
     0,

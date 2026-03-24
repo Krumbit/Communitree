@@ -9,6 +9,7 @@ Any endpoint can return a 404 if the referenced resource does not exist.
 
 Method: GET
 Purpose: Fetch all data required for the app (home, community, shop). Also triggers the lazy daily reset for the user's community.
+Note: `user_tasks` includes both completed and incomplete tasks from the last 7 days.
 ```
 Returns: json {
     'success': Bool,
@@ -17,8 +18,9 @@ Returns: json {
     // Only present if user is in a community:
     'community': Dict,           // includes 'members' list with 'completedToday' per member
     'community_tasks': List[Dict],
-    'unlocked': List[Dict],
-    'locked': List[Dict]
+    'current_task': Dict | null, // most recent community task (present even if user already completed it)
+    'unlocked': List[CommunityUnlockable dict],  // purchased items; each includes applied status
+    'locked': List[Unlockable dict]              // unpurchased items
 }
 ```
 
@@ -41,8 +43,9 @@ Returns: json {
     'user_tasks': List[Dict],
     'community': Dict,
     'community_tasks': List[Dict],
-    'unlocked': List[Dict],
-    'locked': List[Dict]
+    'current_task': Dict | null,
+    'unlocked': List[CommunityUnlockable dict],
+    'locked': List[Unlockable dict]
 }
 ```
 
@@ -66,8 +69,9 @@ Returns: json {
     'user_tasks': List[Dict],
     'community': Dict,
     'community_tasks': List[Dict],
-    'unlocked': List[Dict],
-    'locked': List[Dict]
+    'current_task': Dict | null,
+    'unlocked': List[CommunityUnlockable dict],
+    'locked': List[Unlockable dict]
 }
 ```
 

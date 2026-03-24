@@ -1,11 +1,12 @@
 # Communitree – Project Context
 
 ## Overview
-React Native (Expo) frontend with a separate Flask + SQLite backend. Currently **not connected** — the frontend runs entirely on mock in-memory state via `CommunitreeProvider`. Mock function signatures and comments mirror the real backend API routes.
+React Native (Expo) frontend connected to a Flask + SQLite backend via HTTP. The frontend uses `communitree-context.tsx` to make real API calls, persist sessions via `expo-secure-store`, and keep all screens in sync via a `refreshUserData` pattern.
 
 ## Stack
 - **Frontend**: Expo (React Native), TypeScript, NativeWind (TailwindCSS)
-- **Backend**: Flask, SQLAlchemy, SQLite (in `/backend`)
+- **Backend**: Flask, SQLAlchemy, SQLite (in `/backend`) — runs on port 5000
+- **Session persistence**: `expo-secure-store` (stores `user_id`)
 - **Styling tokens**: `constants/palette.ts` + `tailwind.config.js`
 
 ## File Structure
@@ -31,11 +32,16 @@ components/
   PlantPreview.tsx     – Shared plant visual used in community + shop pages
 
 constants/
+  api.ts               – API_BASE URL (swap to LAN IP for physical device)
   palette.ts           – Design system colour tokens
   plant-tiers.ts       – PLANT_TIERS array (tier → name + health label); used for progress bar labels
+  unlockables-meta.ts  – Static name/description/accent keyed by seeded DB ID (1–6)
 
 context/
-  communitree-context.tsx  – All app state + mock implementations of backend calls
+  communitree-context.tsx  – All app state; real API calls + SecureStore session
+
+utils/
+  mappers.ts           – Backend snake_case → frontend camelCase type mappers
 ```
 
 ## Backend API Routes (Flask)
@@ -96,6 +102,16 @@ context/
 ### CommunityTask, UserCommunityTask, CommunityUnlockable, Unlockable
 No changes to these models.
 
+## Integration Notes
+- **API base**: `constants/api.ts` — set to `http://localhost:5000` by default. Change to your Mac's LAN IP when testing on a physical device or Android emulator.
+- **Session flow**: On app mount, `CommunitreeProvider` reads `user_id` from SecureStore and calls `GET /data/{user_id}`. On login/signup the response is mapped and `user_id` is stored. On sign-out, SecureStore entry is deleted and all state is reset.
+- **Refresh pattern**: Every action (complete task, join community, buy item, etc.) calls its endpoint then triggers `refreshUserData()`, keeping all screens in sync with a single truth from the backend.
+- **Unlockables seeding**: `backend/app.py` seeds 6 Unlockable rows (IDs 1–6) on startup if the table is empty. The frontend's `constants/unlockables-meta.ts` maps those IDs to display metadata.
+- **`unlocked` response shape**: `GET /data` returns `unlocked` as a list of `CommunityUnlockable` dicts (includes `applied` status + embedded `unlockable`), not raw Unlockable dicts.
+- **user_tasks includes completed**: The `/data` endpoint now returns all tasks from the last 7 days (completed and incomplete), so the dashboard habit history can display them.
+- **Loading guard**: `index.tsx` shows a spinner while `isLoading` is true (SecureStore lookup + initial data fetch) to prevent a flash redirect to sign-in on startup.
+- **weeklyHistory**: Mapper returns `[]` — no backend equivalent yet. Stats page degrades gracefully.
+
 ## Key Design Decisions
 - **Plant tiers**: Community progress tracked as `tier` (int 0–7, indexes into `PLANT_TIERS`) + `tier_progress` (float 0.0–1.0). Frontend mock uses `plantLevel` as the tier index. Tier cannot decrease; `tier_progress` floors at 0.0 on a bad day.
 - **Daily reset**: Lazy — runs inside `query_user_data` when `community.last_reset_date` is not today. Updates `tier`/`tier_progress`, awards streak bonuses (+3 at every 7-day milestone) and collective bonus (+2 if 100% completion), and updates `streak_days` per member.
@@ -109,7 +125,6 @@ No changes to these models.
 - **Task history**: Completed personal tasks are shown inline in `index.tsx` with a strikethrough style + filled checkmark. They do not disappear on completion.
 - **Date picker**: `@react-native-community/datetimepicker` is used for deadline selection in the task composer (separate date and time pickers).
 
-## Current Mock State
-- User: Yan Slobodianik, 110 coins, 5-day streak
-- Community: Rosebank House (GROW-37), plant tier 6 (Monstera Bloom), 4 members
-- `inCommunity` starts `true`; toggled by `leaveCommunity` / `joinCommunity` / `createCommunity`
+## Running Locally
+1. **Backend**: `cd backend && python3 app.py` — starts on port 5000, seeds unlockables on first run.
+2. **Frontend**: `npx expo start --go` (Expo Go) or `npx expo run:ios` (dev build) — connects to `http://localhost:5000`.
