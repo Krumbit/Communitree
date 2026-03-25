@@ -56,6 +56,7 @@ export type Unlockable = {
   name: string;
   category: UnlockableCategory;
   price: number;
+  minimumTier: number;
   description: string;
   accent: string;
   purchased: boolean;

@@ -8,15 +8,24 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
 from src.models import (
-    db, User, UserTask, Community, CommunityTask,
-    UserCommunityTask, CommunityUnlockable, Unlockable
+    db,
+    User,
+    UserTask,
+    Community,
+    CommunityTask,
+    UserCommunityTask,
+    CommunityUnlockable,
+    Unlockable,
 )
 from src.constants import (
-    COINS_FOR_COMPLETE_TASK, COINS_STREAK_BONUS, COINS_COLLECTIVE_BONUS,
-    LEVELS_PER_TIER, MAX_TIER
+    COINS_FOR_COMPLETE_TASK,
+    COINS_STREAK_BONUS,
+    COINS_COLLECTIVE_BONUS,
+    LEVELS_PER_TIER,
+    MAX_TIER,
 )
 
-routes = Blueprint('main', __name__)
+routes = Blueprint("main", __name__)
 ph = PasswordHasher()
 
 
@@ -24,14 +33,12 @@ ph = PasswordHasher()
 # Query helpers
 # ---------------------------------------------------------------------------
 
+
 def gen_user_tasks_query(user_id: int):
     """Return all personal tasks created in the last 7 days (completed or not)."""
-    return (
-        select(UserTask)
-        .where(
-            UserTask.user_id == user_id,
-            UserTask.created_date > datetime.now() - timedelta(days=7),
-        )
+    return select(UserTask).where(
+        UserTask.user_id == user_id,
+        UserTask.created_date > datetime.now() - timedelta(days=7),
     )
 
 
@@ -43,13 +50,13 @@ def gen_community_tasks_query(user_id: int):
             UserCommunityTask,
             and_(
                 UserCommunityTask.community_task_id == CommunityTask.id,
-                UserCommunityTask.user_id == user_id
-            )
+                UserCommunityTask.user_id == user_id,
+            ),
         )
         .where(
             and_(
                 UserCommunityTask.user_id == None,
-                CommunityTask.created_date > datetime.now() - timedelta(days=7)
+                CommunityTask.created_date > datetime.now() - timedelta(days=7),
             )
         )
     )
@@ -57,9 +64,8 @@ def gen_community_tasks_query(user_id: int):
 
 def gen_unlocked_query(community_id: int):
     """Returns CommunityUnlockable rows (includes applied status and embedded unlockable)."""
-    return (
-        select(CommunityUnlockable)
-        .where(CommunityUnlockable.community_id == community_id)
+    return select(CommunityUnlockable).where(
+        CommunityUnlockable.community_id == community_id
     )
 
 
@@ -70,8 +76,8 @@ def gen_locked_query(community_id: int):
             CommunityUnlockable,
             and_(
                 CommunityUnlockable.unlockable_id == Unlockable.id,
-                CommunityUnlockable.community_id == community_id
-            )
+                CommunityUnlockable.community_id == community_id,
+            ),
         )
         .where(CommunityUnlockable.community_id == None)
     )
@@ -83,7 +89,7 @@ def get_current_task(community_id: int) -> CommunityTask | None:
         select(CommunityTask)
         .where(
             CommunityTask.community_id == community_id,
-            CommunityTask.created_date > datetime.now() - timedelta(days=7)
+            CommunityTask.created_date > datetime.now() - timedelta(days=7),
         )
         .order_by(CommunityTask.created_date.desc())
         .limit(1)
@@ -94,12 +100,13 @@ def get_current_task(community_id: int) -> CommunityTask | None:
 # Daily reset (lazy — runs once per day per community)
 # ---------------------------------------------------------------------------
 
+
 def maybe_run_daily_reset(community: Community):
     today = datetime.now(timezone.utc).date()
 
     if community.last_reset_date is not None:
         last = community.last_reset_date
-        if hasattr(last, 'date'):
+        if hasattr(last, "date"):
             last = last.date()
         if last >= today:
             return
@@ -117,7 +124,8 @@ def maybe_run_daily_reset(community: Community):
         return
 
     completed_user_ids = {
-        row.user_id for row in db.session.scalars(
+        row.user_id
+        for row in db.session.scalars(
             select(UserCommunityTask).where(
                 UserCommunityTask.community_task_id == current_task.id
             )
@@ -152,7 +160,11 @@ def maybe_run_daily_reset(community: Community):
         if member_completed:
             last_updated = member.streak_last_updated
             if last_updated is not None:
-                last_date = last_updated.date() if hasattr(last_updated, 'date') else last_updated
+                last_date = (
+                    last_updated.date()
+                    if hasattr(last_updated, "date")
+                    else last_updated
+                )
                 if last_date == yesterday:
                     member.streak_days += 1
                 elif last_date != today:
@@ -178,16 +190,19 @@ def maybe_run_daily_reset(community: Community):
 # Data query (shared by /data, /login, /signup)
 # ---------------------------------------------------------------------------
 
+
 def query_user_data(user_id: int):
     user = db.get_or_404(User, user_id)
     user_tasks = db.session.scalars(gen_user_tasks_query(user.id)).all()
 
     if user.community_id is None:
-        return jsonify({
-            'success': True,
-            'user': user.to_dict(),
-            'user_tasks': [t.to_dict() for t in user_tasks]
-        })
+        return jsonify(
+            {
+                "success": True,
+                "user": user.to_dict(),
+                "user_tasks": [t.to_dict() for t in user_tasks],
+            }
+        )
 
     community = db.get_or_404(Community, user.community_id)
 
@@ -202,7 +217,8 @@ def query_user_data(user_id: int):
     completed_today_ids = set()
     if current_task:
         completed_today_ids = {
-            row.user_id for row in db.session.scalars(
+            row.user_id
+            for row in db.session.scalars(
                 select(UserCommunityTask).where(
                     UserCommunityTask.community_task_id == current_task.id
                 )
@@ -210,41 +226,46 @@ def query_user_data(user_id: int):
         }
 
     community_data = community.to_dict()
-    for member in community_data['members']:
-        member['completedToday'] = member['id'] in completed_today_ids
+    for member in community_data["members"]:
+        member["completedToday"] = member["id"] in completed_today_ids
 
-    return jsonify({
-        'success': True,
-        'user': user.to_dict(),
-        'user_tasks': [t.to_dict() for t in user_tasks],
-        'community': community_data,
-        'community_tasks': [t.to_dict() for t in community_tasks],
-        'current_task': current_task.to_dict() if current_task else None,
-        'unlocked': [u.to_dict() for u in unlocked],
-        'locked': [l.to_dict() for l in locked]
-    })
+    return jsonify(
+        {
+            "success": True,
+            "user": user.to_dict(),
+            "user_tasks": [t.to_dict() for t in user_tasks],
+            "community": community_data,
+            "community_tasks": [t.to_dict() for t in community_tasks],
+            "current_task": current_task.to_dict() if current_task else None,
+            "unlocked": [u.to_dict() for u in unlocked],
+            "locked": [l.to_dict() for l in locked],
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
 
-@routes.route('/data/<int:user_id>', methods=['GET'])
+
+@routes.route("/data/<int:user_id>", methods=["GET"])
 def get_user_data(user_id: int) -> Response:
     return query_user_data(user_id)
 
 
-@routes.route('/login', methods=['POST'])
+@routes.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
+    email = data.get("email")
+    password = data.get("password")
 
     user_query = select(User).where(User.email == email)
     user = db.session.execute(user_query).scalars().first()
 
     if user is None:
-        return jsonify({"success": False, "message": "No account found with that email."})
+        return jsonify(
+            {"success": False, "message": "No account found with that email."}
+        )
 
     try:
         ph.verify(user.passhash, password)
@@ -254,12 +275,12 @@ def login():
     return query_user_data(user.id)
 
 
-@routes.route('/signup', methods=['POST'])
+@routes.route("/signup", methods=["POST"])
 def sign_up():
     data = request.get_json()
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
+    username = data.get("username")
+    email = data.get("email")
+    password = data.get("password")
 
     passhash = ph.hash(password)
 
@@ -267,7 +288,12 @@ def sign_up():
     user = db.session.execute(user_query).scalars().first()
 
     if user is not None:
-        return jsonify({"success": False, "message": "A user already exists with this email or username."})
+        return jsonify(
+            {
+                "success": False,
+                "message": "A user already exists with this email or username.",
+            }
+        )
 
     user = User(username, email, passhash)
     db.session.add(user)
@@ -280,11 +306,12 @@ def sign_up():
 # Community management
 # ---------------------------------------------------------------------------
 
-@routes.route('/create-community', methods=['POST'])
+
+@routes.route("/create-community", methods=["POST"])
 def create_community():
     data = request.get_json()
-    user_id = data.get('user_id')
-    community_name = data.get('community_name')
+    user_id = data.get("user_id")
+    community_name = data.get("community_name")
 
     user = db.get_or_404(User, user_id)
     community = Community(community_name)
@@ -297,20 +324,22 @@ def create_community():
     return jsonify({"success": True, "code": f"GROW-{community.id}"})
 
 
-@routes.route('/join-community', methods=['POST'])
+@routes.route("/join-community", methods=["POST"])
 def join_community():
     """Accepts a community code in the format GROW-{id}."""
     data = request.get_json()
-    user_id = data.get('user_id')
-    code = data.get('code')
+    user_id = data.get("user_id")
+    code = data.get("code")
 
     try:
-        community_id = int(code.split('-')[1])
+        community_id = int(code.split("-")[1])
     except (AttributeError, IndexError, ValueError):
         return jsonify({"success": False, "message": "Invalid community code format."})
 
     user = db.get_or_404(User, user_id)
-    db.get_or_404(Community, community_id, description=f"No community found for code {code}.")
+    db.get_or_404(
+        Community, community_id, description=f"No community found for code {code}."
+    )
 
     user.community_id = community_id
     db.session.commit()
@@ -318,10 +347,10 @@ def join_community():
     return jsonify({"success": True})
 
 
-@routes.route('/leave-community', methods=['POST'])
+@routes.route("/leave-community", methods=["POST"])
 def leave_community():
     data = request.get_json()
-    user_id = data.get('user_id')
+    user_id = data.get("user_id")
 
     user = db.get_or_404(User, user_id)
     community = db.get_or_404(Community, user.community_id)
@@ -335,7 +364,9 @@ def leave_community():
 
     user.community_id = None
 
-    db.session.execute(delete(UserCommunityTask).where(UserCommunityTask.user_id == user_id))
+    db.session.execute(
+        delete(UserCommunityTask).where(UserCommunityTask.user_id == user_id)
+    )
     db.session.commit()
 
     return jsonify({"success": True})
@@ -345,12 +376,13 @@ def leave_community():
 # Personal tasks
 # ---------------------------------------------------------------------------
 
-@routes.route('/create-user-task', methods=['POST'])
+
+@routes.route("/create-user-task", methods=["POST"])
 def create_user_task():
     data = request.get_json()
-    user_id = data.get('user_id')
-    task_description = data.get('task_description')
-    deadline_str = data.get('deadline')
+    user_id = data.get("user_id")
+    task_description = data.get("task_description")
+    deadline_str = data.get("deadline")
 
     db.get_or_404(User, user_id)
 
@@ -360,7 +392,9 @@ def create_user_task():
         try:
             task.deadline = datetime.fromisoformat(deadline_str)
         except ValueError:
-            return jsonify({"success": False, "message": "Invalid deadline format. Use ISO 8601."})
+            return jsonify(
+                {"success": False, "message": "Invalid deadline format. Use ISO 8601."}
+            )
 
     db.session.add(task)
     db.session.commit()
@@ -368,11 +402,11 @@ def create_user_task():
     return jsonify({"success": True})
 
 
-@routes.route('/complete-user-task', methods=['POST'])
+@routes.route("/complete-user-task", methods=["POST"])
 def complete_user_task():
     data = request.get_json()
-    user_id = data.get('user_id')
-    task_id = data.get('task_id')
+    user_id = data.get("user_id")
+    task_id = data.get("task_id")
 
     user = db.get_or_404(User, user_id)
     task = db.get_or_404(UserTask, task_id)
@@ -384,11 +418,11 @@ def complete_user_task():
     return jsonify({"success": True})
 
 
-@routes.route('/uncomplete-user-task', methods=['POST'])
+@routes.route("/uncomplete-user-task", methods=["POST"])
 def uncomplete_user_task():
     data = request.get_json()
-    user_id = data.get('user_id')
-    task_id = data.get('task_id')
+    user_id = data.get("user_id")
+    task_id = data.get("task_id")
 
     db.get_or_404(User, user_id)
     task = db.get_or_404(UserTask, task_id)
@@ -404,17 +438,20 @@ def uncomplete_user_task():
 # Community tasks
 # ---------------------------------------------------------------------------
 
-@routes.route('/create-community-task', methods=['POST'])
+
+@routes.route("/create-community-task", methods=["POST"])
 def create_community_task():
     data = request.get_json()
-    user_id = data.get('user_id')
-    description = data.get('task_description')
+    user_id = data.get("user_id")
+    description = data.get("task_description")
 
     user = db.get_or_404(User, user_id)
     community = db.get_or_404(Community, user.community_id)
 
     if not user.admin:
-        return jsonify({"success": False, "message": "You must be admin to create tasks."})
+        return jsonify(
+            {"success": False, "message": "You must be admin to create tasks."}
+        )
 
     task = CommunityTask(description, community.id)
     db.session.add(task)
@@ -423,11 +460,11 @@ def create_community_task():
     return jsonify({"success": True})
 
 
-@routes.route('/complete-community-task', methods=['POST'])
+@routes.route("/complete-community-task", methods=["POST"])
 def complete_community_task():
     data = request.get_json()
-    user_id = data.get('user_id')
-    community_task_id = data.get('community_task_id')
+    user_id = data.get("user_id")
+    community_task_id = data.get("community_task_id")
 
     user = db.get_or_404(User, user_id)
     db.get_or_404(CommunityTask, community_task_id)
@@ -435,11 +472,13 @@ def complete_community_task():
     existing = db.session.scalar(
         select(UserCommunityTask).where(
             UserCommunityTask.user_id == user_id,
-            UserCommunityTask.community_task_id == community_task_id
+            UserCommunityTask.community_task_id == community_task_id,
         )
     )
     if existing:
-        return jsonify({"success": False, "message": "Already checked in for this task."})
+        return jsonify(
+            {"success": False, "message": "Already checked in for this task."}
+        )
 
     db.session.add(UserCommunityTask(user_id, community_task_id))
     user.balance += COINS_FOR_COMPLETE_TASK
@@ -448,18 +487,18 @@ def complete_community_task():
     return jsonify({"success": True})
 
 
-@routes.route('/undo-community-checkin', methods=['POST'])
+@routes.route("/undo-community-checkin", methods=["POST"])
 def undo_community_checkin():
     data = request.get_json()
-    user_id = data.get('user_id')
-    community_task_id = data.get('community_task_id')
+    user_id = data.get("user_id")
+    community_task_id = data.get("community_task_id")
 
     user = db.get_or_404(User, user_id)
 
     db.session.execute(
         delete(UserCommunityTask).where(
             UserCommunityTask.user_id == user_id,
-            UserCommunityTask.community_task_id == community_task_id
+            UserCommunityTask.community_task_id == community_task_id,
         )
     )
     user.balance = max(0, user.balance - COINS_FOR_COMPLETE_TASK)
@@ -472,23 +511,36 @@ def undo_community_checkin():
 # Shop / unlockables
 # ---------------------------------------------------------------------------
 
-@routes.route('/buy-community-unlockable', methods=['POST'])
+
+@routes.route("/buy-community-unlockable", methods=["POST"])
 def buy_community_unlockable():
     data = request.get_json()
-    user_id = data.get('user_id')
-    unlockable_id = data.get('unlockable_id')
+    user_id = data.get("user_id")
+    unlockable_id = data.get("unlockable_id")
 
     user = db.get_or_404(User, user_id)
 
     if user.community_id is None:
-        return jsonify({"success": False, "message": "You are not part of a community."})
+        return jsonify(
+            {"success": False, "message": "You are not part of a community."}
+        )
+
+    community = db.get_or_404(Community, user.community_id)
 
     unlockable = db.get_or_404(Unlockable, unlockable_id)
+
+    if community.tier < unlockable.minimum_tier:
+        return jsonify(
+            {
+                "success": False,
+                "message": f"Your community plant must reach tier {unlockable.minimum_tier} before buying this item.",
+            }
+        )
 
     existing = db.session.scalar(
         select(CommunityUnlockable).where(
             CommunityUnlockable.community_id == user.community_id,
-            CommunityUnlockable.unlockable_id == unlockable_id
+            CommunityUnlockable.unlockable_id == unlockable_id,
         )
     )
     if existing is not None:
@@ -504,11 +556,11 @@ def buy_community_unlockable():
     return jsonify({"success": True})
 
 
-@routes.route('/apply-community-unlockable', methods=['POST'])
+@routes.route("/apply-community-unlockable", methods=["POST"])
 def apply_community_unlockable():
     data = request.get_json()
-    user_id = data.get('user_id')
-    unlockable_id = data.get('unlockable_id')
+    user_id = data.get("user_id")
+    unlockable_id = data.get("unlockable_id")
 
     user = db.get_or_404(User, user_id)
 
@@ -516,7 +568,7 @@ def apply_community_unlockable():
     community_unlockable = db.first_or_404(
         select(CommunityUnlockable).where(
             CommunityUnlockable.community_id == user.community_id,
-            CommunityUnlockable.unlockable_id == unlockable_id
+            CommunityUnlockable.unlockable_id == unlockable_id,
         )
     )
 
@@ -529,7 +581,7 @@ def apply_community_unlockable():
         .where(
             and_(
                 CommunityUnlockable.community_id == user.community_id,
-                CommunityUnlockable.unlockable_id.in_(unlockables_in_category)
+                CommunityUnlockable.unlockable_id.in_(unlockables_in_category),
             )
         )
         .values(applied=False)
