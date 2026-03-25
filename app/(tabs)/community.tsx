@@ -16,6 +16,7 @@ export default function CommunityScreen() {
     completionRate,
     createCommunity,
     createCommunityTask,
+    emulateDayPassing,
     equipped,
     inCommunity,
     isOwner,
@@ -405,6 +406,29 @@ export default function CommunityScreen() {
                       Publish task
                     </Text>
                   )}
+                </Pressable>
+
+                <View className="my-5 h-px bg-slate/10" />
+
+                <Text className="text-lg font-semibold text-slate">
+                  Demo controls
+                </Text>
+                <Text className="mt-2 text-sm leading-6 text-slate/70">
+                  Advance the community by one simulated day to show plant growth, streaks, and unlock progression during the demo.
+                </Text>
+                <Pressable
+                  className={`mt-4 rounded-[20px] px-4 py-4 ${isBusy ? "bg-slate/50" : "bg-slate"}`}
+                  disabled={isBusy}
+                  onPress={async () => {
+                    setIsBusy(true);
+                    const result = await emulateDayPassing();
+                    setManageMessage(result.message);
+                    setIsBusy(false);
+                  }}
+                >
+                  <Text className="text-center text-sm font-semibold text-ivory">
+                    Emulate one day passing
+                  </Text>
                 </Pressable>
 
                 <View className="my-5 h-px bg-slate/10" />

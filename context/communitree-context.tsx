@@ -82,6 +82,7 @@ type CommunitreeContextValue = {
   addPersonalTask: (title: string, deadline: string) => Promise<void>;
   toggleCommunityCompletion: () => Promise<void>;
   createCommunityTask: (title: string) => Promise<void>;
+  emulateDayPassing: () => Promise<ActionResult>;
   joinCommunity: (code: string) => Promise<ActionResult>;
   leaveCommunity: () => Promise<void>;
   createCommunity: (name: string) => Promise<ActionResult>;
@@ -316,6 +317,13 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
       await refreshUserData();
     };
 
+    const emulateDayPassing = async (): Promise<ActionResult> => {
+      const data = await apiPost("/emulate-day-passing", { user_id: uid() });
+      if (!data.success) return { ok: false, message: data.message ?? "Could not advance demo time." };
+      await refreshUserData();
+      return { ok: true, message: data.message ?? "Advanced the community by one day." };
+    };
+
     const joinCommunity = async (code: string): Promise<ActionResult> => {
       const data = await apiPost("/join-community", { user_id: uid(), code: code.trim() });
       if (!data.success) return { ok: false, message: data.message ?? "Could not join community." };
@@ -374,6 +382,7 @@ export function CommunitreeProvider({ children }: PropsWithChildren) {
       addPersonalTask,
       toggleCommunityCompletion,
       createCommunityTask,
+      emulateDayPassing,
       joinCommunity,
       leaveCommunity,
       createCommunity,

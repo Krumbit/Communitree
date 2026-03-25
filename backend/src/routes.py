@@ -1,6 +1,6 @@
 import random
 from math import ceil
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from flask import Blueprint, request, Response, jsonify
 from sqlalchemy import select, update, delete, and_
@@ -101,25 +101,23 @@ def get_current_task(community_id: int) -> CommunityTask | None:
 # ---------------------------------------------------------------------------
 
 
-def maybe_run_daily_reset(community: Community):
-    today = datetime.now(timezone.utc).date()
-
-    if community.last_reset_date is not None:
-        last = community.last_reset_date
-        if hasattr(last, "date"):
-            last = last.date()
-        if last >= today:
-            return
-
+def run_daily_reset(
+    community: Community,
+    reset_date: date,
+    *,
+    clear_current_task_checkins: bool = False,
+):
     current_task = get_current_task(community.id)
+    reset_at = datetime.combine(reset_date, datetime.min.time(), tzinfo=timezone.utc)
+
     if current_task is None:
-        community.last_reset_date = datetime.now(timezone.utc)
+        community.last_reset_date = reset_at
         db.session.commit()
         return
 
     total_members = len(community.users)
     if total_members == 0:
-        community.last_reset_date = datetime.now(timezone.utc)
+        community.last_reset_date = reset_at
         db.session.commit()
         return
 
@@ -152,7 +150,7 @@ def maybe_run_daily_reset(community: Community):
     collective_bonus = completed_count == total_members
 
     # --- Per-member streak + bonuses ---
-    yesterday = today - timedelta(days=1)
+    yesterday = reset_date - timedelta(days=1)
 
     for member in community.users:
         member_completed = member.id in completed_user_ids
@@ -167,12 +165,12 @@ def maybe_run_daily_reset(community: Community):
                 )
                 if last_date == yesterday:
                     member.streak_days += 1
-                elif last_date != today:
+                elif last_date != reset_date:
                     member.streak_days = 1
             else:
                 member.streak_days = 1
 
-            member.streak_last_updated = datetime.now(timezone.utc)
+            member.streak_last_updated = reset_at
 
             if member.streak_days % 7 == 0:
                 member.balance += COINS_STREAK_BONUS
@@ -182,8 +180,28 @@ def maybe_run_daily_reset(community: Community):
         else:
             member.streak_days = 0
 
-    community.last_reset_date = datetime.now(timezone.utc)
+    if clear_current_task_checkins:
+        db.session.execute(
+            delete(UserCommunityTask).where(
+                UserCommunityTask.community_task_id == current_task.id
+            )
+        )
+
+    community.last_reset_date = reset_at
     db.session.commit()
+
+
+def maybe_run_daily_reset(community: Community):
+    today = datetime.now(timezone.utc).date()
+
+    if community.last_reset_date is not None:
+        last = community.last_reset_date
+        if hasattr(last, "date"):
+            last = last.date()
+        if last >= today:
+            return
+
+    run_daily_reset(community, today)
 
 
 # ---------------------------------------------------------------------------
@@ -370,6 +388,50 @@ def leave_community():
     db.session.commit()
 
     return jsonify({"success": True})
+
+
+@routes.route("/emulate-day-passing", methods=["POST"])
+def emulate_day_passing():
+    data = request.get_json()
+    user_id = data.get("user_id")
+
+    user = db.get_or_404(User, user_id)
+
+    if user.community_id is None:
+        return jsonify(
+            {"success": False, "message": "You are not part of a community."}
+        )
+
+    if not user.admin:
+        return jsonify(
+            {
+                "success": False,
+                "message": "Only the community owner can use demo controls.",
+            }
+        )
+
+    community = db.get_or_404(Community, user.community_id)
+    simulated_today = datetime.now(timezone.utc).date()
+
+    if community.last_reset_date is not None:
+        simulated_today = (
+            community.last_reset_date.date()
+            if hasattr(community.last_reset_date, "date")
+            else community.last_reset_date
+        )
+
+    run_daily_reset(
+        community,
+        simulated_today + timedelta(days=1),
+        clear_current_task_checkins=True,
+    )
+
+    return jsonify(
+        {
+            "success": True,
+            "message": "Advanced the community by one day for the demo.",
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
