@@ -6,7 +6,7 @@ import { palette } from "@/constants/palette";
 import { useCommunitree } from "@/context/communitree-context";
 
 export default function ShopScreen() {
-  const { buyUnlockable, equipUnlockable, equipped, unlockables, user } =
+  const { buyUnlockable, community, equipUnlockable, equipped, unlockables, user } =
     useCommunitree();
 
   const equippedItems = useMemo(() => {
@@ -86,6 +86,8 @@ export default function ShopScreen() {
             <View className="mt-4 gap-4">
               {section.items.map((item) => {
                 const isEquipped = equipped[item.category] === item.id;
+                const meetsTierRequirement = community.plantLevel >= item.minimumTier;
+                const purchaseDisabled = !item.purchased && !meetsTierRequirement;
 
                 return (
                   <View
@@ -112,6 +114,11 @@ export default function ShopScreen() {
                         <Text className="text-sm font-semibold uppercase tracking-[1px] text-slate/60">
                           {item.price} coins
                         </Text>
+                        {!item.purchased && item.minimumTier > 0 ? (
+                          <Text className="mt-2 text-right text-xs font-semibold uppercase tracking-[1px] text-slate/55">
+                            Tier {item.minimumTier} required
+                          </Text>
+                        ) : null}
                         {item.purchased ? (
                           <View className="mt-3 rounded-full bg-teal-mist px-3 py-2">
                             <Text className="text-xs font-semibold text-slate">
@@ -137,18 +144,24 @@ export default function ShopScreen() {
                         </Pressable>
                       ) : (
                         <Pressable
-                          className="flex-1 rounded-[20px] bg-slate px-4 py-4"
+                          className={`flex-1 rounded-[20px] px-4 py-4 ${purchaseDisabled ? "bg-slate/45" : "bg-slate"}`}
+                          disabled={purchaseDisabled}
                           onPress={async () => {
                             const result = await buyUnlockable(item.id);
                             setMessage(result.message);
                           }}
                         >
                           <Text className="text-center text-sm font-semibold text-white">
-                            Buy and equip
+                            {purchaseDisabled ? `Reach tier ${item.minimumTier}` : "Buy and equip"}
                           </Text>
                         </Pressable>
                       )}
                     </View>
+                    {!item.purchased && !meetsTierRequirement ? (
+                      <Text className="mt-3 text-sm leading-6 text-slate/70">
+                        Your community plant is tier {community.plantLevel}. Reach tier {item.minimumTier} to unlock purchasing.
+                      </Text>
+                    ) : null}
                   </View>
                 );
               })}

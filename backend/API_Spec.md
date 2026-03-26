@@ -131,6 +131,24 @@ Returns: json {
 
 ---
 
+### `/emulate-day-passing`
+
+Method: POST
+Purpose: Demo-only control that advances the user's community by one simulated day, immediately applying the daily reset logic and clearing current task check-ins for the next day. Admin only.
+```
+Requires: json {
+    'user_id': Int
+}
+```
+```
+Returns: json {
+    'success': Bool,
+    'message': String
+}
+```
+
+---
+
 ### `/create-user-task`
 
 Method: POST
