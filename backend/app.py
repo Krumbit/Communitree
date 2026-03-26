@@ -45,6 +45,7 @@ def create_demo_data(app):
         for user in users:
             user.balance = 50
             user.community_id = community.id
+        users[0].admin = True
         db.session.add_all(users)
         db.session.flush()  # To get user ids
         
